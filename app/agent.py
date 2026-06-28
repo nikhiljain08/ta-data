@@ -70,7 +70,7 @@ class Agent:
             }
             sync_engine = SyncEngine(services, self._settings.sync.entity_order)
 
-            self._scheduler = TallySyncScheduler(engine=engine)
+            self._scheduler = TallySyncScheduler()
             company = self._settings.tally.company_name
 
             self._scheduler.add_interval_job(  # type: ignore[attr-defined]

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 
 class TestTallySyncScheduler:
-    def test_builds_without_engine(self) -> None:
+    def test_builds_scheduler(self) -> None:
         from app.scheduler.scheduler import TallySyncScheduler
 
         with (
@@ -14,7 +14,7 @@ class TestTallySyncScheduler:
             patch("app.scheduler.scheduler.BackgroundScheduler") as mock_sched_cls,
         ):
             mock_sched_cls.return_value = MagicMock()
-            sched = TallySyncScheduler(engine=None)
+            sched = TallySyncScheduler()
             assert sched._scheduler is not None
 
     def test_no_apscheduler_creates_stub(self) -> None:

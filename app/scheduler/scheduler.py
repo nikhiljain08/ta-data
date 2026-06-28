@@ -6,7 +6,6 @@ from typing import Any
 from loguru import logger
 
 try:
-    from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
     from apscheduler.schedulers.background import BackgroundScheduler
 
     _HAS_APSCHEDULER = True
@@ -17,17 +16,14 @@ except ImportError:  # pragma: no cover
 class TallySyncScheduler:
     """Wraps APScheduler's BackgroundScheduler for the TallySync agent.
 
-    Jobs are persisted in PostgreSQL via SQLAlchemyJobStore so they survive
-    process restarts.  If APScheduler is not installed, the scheduler is a
-    no-op stub that logs a warning.
+    Uses the default MemoryJobStore so jobs are never pickled — this avoids
+    serialisation failures when job callables hold SQLAlchemy engine state.
+    Jobs are always re-registered at startup, so persistence is not needed.
     """
 
-    def __init__(self, engine: Any | None = None) -> None:
+    def __init__(self) -> None:
         self._scheduler: Any = None
-        if _HAS_APSCHEDULER and engine is not None:
-            jobstores = {"default": SQLAlchemyJobStore(engine=engine)}
-            self._scheduler = BackgroundScheduler(jobstores=jobstores)
-        elif _HAS_APSCHEDULER:
+        if _HAS_APSCHEDULER:
             self._scheduler = BackgroundScheduler()
         else:
             logger.warning("APScheduler not installed — scheduler is disabled")
