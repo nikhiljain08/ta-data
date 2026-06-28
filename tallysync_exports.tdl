@@ -504,7 +504,8 @@
 
 [Line : TS_VOC_LINE]
     Fields  : TS_VOC_F0, TS_VOC_F1, TS_VOC_F2, TS_VOC_F3, TS_VOC_F4, TS_VOC_F5, TS_VOC_F6, TS_VOC_F7, TS_VOC_F8, TS_VOC_F9
-    Explode : TS_VOC_SP0, TS_VOC_SP1
+    Explode : TS_VOC_SP0
+    Explode : TS_VOC_SP1
     XML Tag : "VOUCHER"
 
 [Field : TS_VOC_F0]

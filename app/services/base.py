@@ -69,7 +69,20 @@ class BaseSyncService[T](ABC):
                 )
                 return count
             except Exception as exc:
-                cp.finish_run(run_id, status="failure", error_message=str(exc))
+                logger.error(
+                    "Entity sync error",
+                    entity=self.entity_name,
+                    company=company_name,
+                    error=str(exc),
+                    exc_info=True,
+                )
+                try:
+                    cp.finish_run(run_id, status="failure", error_message=str(exc))
+                except Exception as record_exc:
+                    logger.warning(
+                        "Could not record sync failure to DB",
+                        record_error=str(record_exc),
+                    )
                 raise
 
     def _fetch_and_parse(self, xml: str) -> list[T]:

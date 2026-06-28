@@ -5,7 +5,7 @@
 tally:
   host: "localhost"
   port: 9000
-  timeout_seconds: 30
+  timeout_seconds: 120
   max_retries: 3
   retry_backoff_base: 2.0       # exponential backoff base (seconds)
   retry_backoff_max: 60.0       # cap retry wait at 60 seconds
