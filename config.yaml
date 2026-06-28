@@ -1,0 +1,63 @@
+# TallySync Agent — Default Configuration
+# Override any value with environment variables prefixed TALLYSYNC_
+# Sensitive values (passwords, API keys) must be set via env vars or keyring — never in this file.
+
+tally:
+  host: "localhost"
+  port: 9000
+  timeout_seconds: 30
+  max_retries: 3
+  retry_backoff_base: 2.0       # exponential backoff base (seconds)
+  retry_backoff_max: 60.0       # cap retry wait at 60 seconds
+  company_name: ""              # leave blank to auto-detect first company
+
+database:
+  # Set TALLYSYNC_DATABASE__URL in environment for the full DSN.
+  # Example: postgresql+psycopg://user:pass@host:5432/tallysync
+  url: "postgresql+psycopg://tallysync:tallysync@localhost:5432/tallysync"
+  pool_size: 5
+  max_overflow: 10
+  pool_timeout: 30
+  echo_sql: false
+
+sync:
+  batch_size: 500               # records per Tally request
+  bulk_insert_size: 1000        # records per DB bulk upsert
+  full_sync_on_startup: false   # force full sync when agent starts
+  incremental_interval_minutes: 15
+  full_sync_cron: "0 2 * * *"   # daily at 02:00 (standard cron expression)
+  entity_order:                 # sync order respects FK dependencies
+    - company
+    - ledger_group
+    - unit
+    - stock_group
+    - godown
+    - voucher_type
+    - stock_item
+    - ledger
+    - voucher
+
+retry:
+  max_attempts: 5
+  dead_letter_after: 3          # move to dead-letter queue after N consecutive failures
+
+api:
+  # Internal control API — bound to localhost only
+  host: "127.0.0.1"
+  port: 8765
+  enabled: true
+
+logging:
+  level: "INFO"                 # DEBUG | INFO | WARNING | ERROR
+  rotation: "10 MB"
+  retention: "30 days"
+  log_dir: "logs"
+  structured: true              # JSON output for log aggregators
+
+security:
+  use_keyring: true             # store secrets in Windows Credential Manager
+  verify_ssl: true
+
+monitoring:
+  emit_sync_stats: true
+  stats_interval_seconds: 60

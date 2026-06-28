@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets — never commit these
+config.local.yaml
+*.env
+.env
+secrets/
+*.key
+*.pem
+
+# Logs
+logs/
+*.log
+
+# PyInstaller
+*.spec
+dist-exe/
+
+# Windows
+Thumbs.db
+Desktop.ini
+*.lnk
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Alembic — keep versions but not local state
+alembic/
+
+# Database files (local SQLite for scheduler job store in dev)
+*.db
+*.sqlite3
