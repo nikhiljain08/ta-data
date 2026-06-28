@@ -20,18 +20,17 @@ Reads accounting data from TallyPrime via HTTP/XML and syncs it to PostgreSQL.
 | 3 | `app/xml/` — 12 XML request templates + `TemplateEngine` | DONE |
 | 4 | `app/parser/` — lxml.iterparse parsers (8 entities) | DONE |
 | 4 | `app/models/domain/` — Pydantic domain DTOs (8 records) | DONE |
+| 5 | `app/models/db/` — SQLAlchemy ORM models (14 tables) + Alembic migration | DONE |
+| 6 | `app/database/` — Engine factory, session scope, bulk upsert | DONE |
+| 7 | `app/repositories/` — Abstract base + PostgreSQL implementations | DONE |
 
 ### Next phase
 
-**Phase 5 — `app/models/db/`** — SQLAlchemy ORM models + Alembic migrations
+**Phase 8 — `app/sync/`** — SyncEngine state machine, CheckpointManager, retry, dedup
 
 ### Remaining phases (in order)
 
 ```
-Phase 5  — app/models/db/     SQLAlchemy ORM models + Alembic initial migration
-Phase 5  — (voucher domain model included here, pre-Phase 11 parser)
-Phase 6  — app/database/      Connection factory, Alembic migrations, bulk ops
-Phase 7  — app/repositories/  Abstract repo interface + PostgreSQL implementations
 Phase 8  — app/sync/          SyncEngine state machine, CheckpointManager, retry, dedup
 Phase 9  — app/services/      Per-entity sync services (orchestrates client → parser → repo)
 Phase 10 — app/scheduler/     APScheduler + SQLAlchemy job store
@@ -199,5 +198,6 @@ Phase 0+1 (settings, logging):  13/13 passing
 Phase 2   (client, health):     28/28 passing
 Phase 3   (xml templates):      33/33 passing
 Phase 4   (parsers + models):   81/81 passing
-Total:                         155/155 passing
+Phase 5-7 (db models, db layer, repos): 53/53 passing
+Total:                         208/208 passing
 ```
