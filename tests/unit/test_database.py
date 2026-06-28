@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.config.settings import DatabaseSettings
 from app.database.bulk import bulk_upsert
 from app.database.engine import build_engine
 from app.database.session import make_session_factory, session_scope
@@ -14,26 +15,33 @@ from app.database.session import make_session_factory, session_scope
 
 
 class TestBuildEngine:
-    def test_creates_engine_with_correct_url(self, test_settings) -> None:
-        engine = build_engine(test_settings.database)
-        assert "postgresql" in str(engine.url) or "sqlite" in str(engine.url)
-        engine.dispose()
+    def test_passes_url_to_create_engine(self) -> None:
+        db = DatabaseSettings(url="postgresql+psycopg://u:p@localhost/testdb")
+        with patch("app.database.engine.create_engine") as mock_create:
+            mock_create.return_value = MagicMock()
+            build_engine(db)
+            args, _ = mock_create.call_args
+            assert args[0] == "postgresql+psycopg://u:p@localhost/testdb"
 
-    def test_engine_has_pool_pre_ping(self, test_settings) -> None:
-        engine = build_engine(test_settings.database)
-        assert engine.pool._pre_ping is True  # type: ignore[attr-defined]
-        engine.dispose()
+    def test_engine_has_pool_pre_ping(self) -> None:
+        db = DatabaseSettings(url="postgresql+psycopg://u:p@localhost/db")
+        with patch("app.database.engine.create_engine") as mock_create:
+            mock_engine = MagicMock()
+            mock_create.return_value = mock_engine
+            result = build_engine(db)
+            _, kwargs = mock_create.call_args
+            assert kwargs["pool_pre_ping"] is True
+            assert result is mock_engine
 
 
 # ── make_session_factory ──────────────────────────────────────────────────────
 
 
 class TestMakeSessionFactory:
-    def test_returns_callable_factory(self, test_settings) -> None:
-        engine = build_engine(test_settings.database)
-        factory = make_session_factory(engine)
+    def test_returns_callable_factory(self) -> None:
+        mock_engine = MagicMock()
+        factory = make_session_factory(mock_engine)
         assert callable(factory)
-        engine.dispose()
 
 
 # ── session_scope ─────────────────────────────────────────────────────────────

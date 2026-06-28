@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "mcp__visualize__read_me",
-      "mcp__visualize__show_widget"
+      "mcp__visualize__show_widget",
+      "PowerShell(.venv\\\\Scripts\\\\ruff check --fix tests\\\\unit\\\\test_database.py)",
+      "PowerShell(.venv\\\\Scripts\\\\ruff format tests\\\\unit\\\\test_database.py)"
     ]
   }
 }
