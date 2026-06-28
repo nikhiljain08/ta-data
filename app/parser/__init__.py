@@ -7,6 +7,7 @@ from app.parser.ledger_group import parse_ledger_groups
 from app.parser.stock_group import parse_stock_groups
 from app.parser.stock_item import parse_stock_items
 from app.parser.unit import parse_units
+from app.parser.voucher import parse_vouchers
 from app.parser.voucher_type import parse_voucher_types
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "parse_stock_items",
     "parse_units",
     "parse_voucher_types",
+    "parse_vouchers",
 ]

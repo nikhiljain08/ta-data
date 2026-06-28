@@ -13,6 +13,7 @@ from app.repositories.postgres.ledger import (
     LedgerRepository,
     VoucherTypeRepository,
 )
+from app.repositories.postgres.voucher import VoucherRepository
 
 __all__ = [
     "CheckpointRepository",
@@ -23,5 +24,6 @@ __all__ = [
     "StockGroupRepository",
     "StockItemRepository",
     "UnitRepository",
+    "VoucherRepository",
     "VoucherTypeRepository",
 ]

@@ -4,7 +4,15 @@
       "mcp__visualize__read_me",
       "mcp__visualize__show_widget",
       "PowerShell(.venv\\\\Scripts\\\\ruff check --fix tests\\\\unit\\\\test_database.py)",
-      "PowerShell(.venv\\\\Scripts\\\\ruff format tests\\\\unit\\\\test_database.py)"
+      "PowerShell(.venv\\\\Scripts\\\\ruff format tests\\\\unit\\\\test_database.py)",
+      "PowerShell(head -50)",
+      "PowerShell(.venv\\\\Scripts\\\\ruff check --fix app\\\\models\\\\domain\\\\voucher.py app\\\\parser\\\\voucher.py app\\\\repositories\\\\postgres\\\\voucher.py app\\\\sync\\\\ app\\\\services\\\\ app\\\\scheduler\\\\ app\\\\api\\\\ app\\\\windows_service\\\\ app\\\\agent.py)",
+      "PowerShell(.venv\\\\Scripts\\\\ruff format app\\\\models\\\\domain\\\\voucher.py app\\\\parser\\\\voucher.py app\\\\repositories\\\\postgres\\\\voucher.py app\\\\sync\\\\ app\\\\services\\\\ app\\\\scheduler\\\\ app\\\\api\\\\ app\\\\windows_service\\\\ app\\\\agent.py 2>&1)",
+      "PowerShell(.venv\\\\Scripts\\\\ruff check --fix tests\\\\unit\\\\parser\\\\test_voucher.py tests\\\\unit\\\\sync\\\\test_engine.py tests\\\\unit\\\\services\\\\test_sync_services.py tests\\\\unit\\\\test_scheduler.py tests\\\\unit\\\\test_api.py)",
+      "PowerShell(.venv\\\\Scripts\\\\ruff format tests\\\\unit\\\\parser\\\\test_voucher.py tests\\\\unit\\\\sync\\\\test_engine.py tests\\\\unit\\\\services\\\\test_sync_services.py tests\\\\unit\\\\test_scheduler.py tests\\\\unit\\\\test_api.py 2>&1)",
+      "PowerShell(.venv\\\\Scripts\\\\ruff check tests\\\\unit\\\\test_scheduler.py tests\\\\unit\\\\services\\\\test_sync_services.py 2>&1)",
+      "PowerShell(.venv\\\\Scripts\\\\pytest tests\\\\unit\\\\ --no-cov -q 2>&1)",
+      "PowerShell(git add -A)"
     ]
   }
 }

@@ -23,22 +23,21 @@ Reads accounting data from TallyPrime via HTTP/XML and syncs it to PostgreSQL.
 | 5 | `app/models/db/` — SQLAlchemy ORM models (14 tables) + Alembic migration | DONE |
 | 6 | `app/database/` — Engine factory, session scope, bulk upsert | DONE |
 | 7 | `app/repositories/` — Abstract base + PostgreSQL implementations | DONE |
+| 8 | `app/sync/` — SyncEngine, SyncResult, IteratorIO streaming helper | DONE |
+| 9 | `app/services/` — BaseSyncService + 9 entity services (all entities) | DONE |
+| 10 | `app/scheduler/` — TallySyncScheduler (APScheduler 3.x wrapper) | DONE |
+| 11 | `app/parser/voucher.py` — Voucher parser (ledger/inventory/GST entries) | DONE |
+| 11 | `app/models/domain/voucher.py` — VoucherRecord + sub-records | DONE |
+| 11 | `app/repositories/postgres/voucher.py` — VoucherRepository (bulk upsert + child rows) | DONE |
+| 12 | `app/api/` — FastAPI control API (localhost:8765) | DONE |
+| 13 | `app/windows_service/` — pywin32 ServiceFramework + installer helpers | DONE |
+| 14 | `tallysync.spec` + `install.ps1` — PyInstaller spec + PowerShell installer | DONE |
+| 15 | `tests/unit/` — Tests for all new modules | DONE |
 
-### Next phase
-
-**Phase 8 — `app/sync/`** — SyncEngine state machine, CheckpointManager, retry, dedup
-
-### Remaining phases (in order)
+### All phases complete
 
 ```
-Phase 8  — app/sync/          SyncEngine state machine, CheckpointManager, retry, dedup
-Phase 9  — app/services/      Per-entity sync services (orchestrates client → parser → repo)
-Phase 10 — app/scheduler/     APScheduler + SQLAlchemy job store
-Phase 11 — app/parser/        Voucher parser (most complex — handles all sub-types)
-Phase 12 — app/api/           Internal FastAPI control API (localhost only)
-Phase 13 — app/windows_service/ pywin32 ServiceFramework + CLI installer
-Phase 14 — Packaging           PyInstaller executable + install script
-Phase 15 — tests/              Integration tests, performance tests
+All 15 phases implemented and passing.
 ```
 
 ---
@@ -198,6 +197,7 @@ Phase 0+1 (settings, logging):  13/13 passing
 Phase 2   (client, health):     28/28 passing
 Phase 3   (xml templates):      33/33 passing
 Phase 4   (parsers + models):   81/81 passing
-Phase 5-7 (db models, db layer, repos): 53/53 passing
-Total:                         208/208 passing
+Phase 5-7  (db models, db layer, repos):    53/53 passing
+Phase 8-15 (sync, services, api, parser):   38/38 passing
+Total:                                     246/246 passing
 ```

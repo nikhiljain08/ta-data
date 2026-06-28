@@ -10,6 +10,7 @@ from app.repositories.postgres import (
     StockGroupRepository,
     StockItemRepository,
     UnitRepository,
+    VoucherRepository,
     VoucherTypeRepository,
 )
 
@@ -23,5 +24,6 @@ __all__ = [
     "StockGroupRepository",
     "StockItemRepository",
     "UnitRepository",
+    "VoucherRepository",
     "VoucherTypeRepository",
 ]
