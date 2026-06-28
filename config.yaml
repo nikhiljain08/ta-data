@@ -26,6 +26,7 @@ sync:
   full_sync_on_startup: true   # force full sync when agent starts
   incremental_interval_minutes: 15
   full_sync_cron: "0 2 * * *"   # daily at 02:00 (standard cron expression)
+  voucher_from_date: "20250401" # pull vouchers from this date (FY 2025-26 start)
   entity_order:                 # sync order respects FK dependencies
     - company
     - ledger_group

@@ -13,9 +13,9 @@ def parse_companies(source: XmlSource) -> Iterator[CompanyRecord]:
         yield CompanyRecord(
             name=base.name_of(elem) or base.text(elem, "REMOTECMPNAME"),
             guid=base.text(elem, "GUID"),
-            books_from=base.text(elem, "BOOKSBEGINNINGFROM"),
-            starting_from=base.text(elem, "STARTINGFROM"),
-            ending_at=base.text(elem, "ENDINGAT"),
+            books_from=base.tally_date(elem, "BOOKSBEGINNINGFROM"),
+            starting_from=base.tally_date(elem, "STARTINGFROM"),
+            ending_at=base.tally_date(elem, "ENDINGAT"),
             country=base.text(elem, "COUNTRYNAME"),
             state=base.text(elem, "STATENAME"),
             gstin=base.text(elem, "GSTIN"),

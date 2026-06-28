@@ -1,0 +1,610 @@
+;; =========================================================================
+;; TallySync — Custom Export Reports
+;; Version: 1.0
+;;
+;; ONE-TIME SETUP
+;; --------------
+;; 1. Note the full path to this file (e.g. C:\TallySync\tallysync_exports.tdl)
+;; 2. Open TallyPrime
+;; 3. Gateway of Tally → press F12 (Configure)
+;;    OR Alt+F3 → F12 (Company Features) → Accept with defaults
+;;    → TDL & Add-on Files → specify path to this file
+;; 4. Restart TallyPrime  (or press Ctrl+Alt+R to hot-reload if available)
+;;
+;; After loading, the reports TS_CMP_REPORT, TS_GRP_REPORT, TS_LED_REPORT,
+;; TS_UNIT_REPORT, TS_SGRP_REPORT, TS_GDN_REPORT, TS_VTYP_REPORT,
+;; TS_SITM_REPORT, and TS_VOC_REPORT become available for HTTP export.
+;;
+;; INCREMENTAL SYNC
+;; ----------------
+;; The variable TSALTERID is set by the HTTP request (STATICVARIABLES).
+;;   TSALTERID = -1  → full sync: all records returned
+;;   TSALTERID = N   → incremental sync: only records with AlterID > N
+;; =========================================================================
+
+;; Incremental sync note
+;; ---------------------
+;; AlterID-based incremental filtering is performed in the agent (Python)
+;; after parsing, NOT in TDL.  Custom variables passed via HTTP
+;; STATICVARIABLES are not reliably accessible inside collection filters,
+;; so every collection returns its full set and the agent drops records
+;; with AlterID <= the stored checkpoint.  Voucher exports are still bounded
+;; server-side by the SVFROMDATE/SVTODATE period filter.
+
+;; =========================================================================
+;; COMPANY
+;; Type: Company (gateway-scoped — do not set SVCURRENTCOMPANY)
+;; =========================================================================
+
+[Report : TS_CMP_REPORT]
+    Form : TS_CMP_FORM
+
+[Form : TS_CMP_FORM]
+    Parts   : TS_CMP_PART
+    XML Tag : "TS_CMP_LIST"
+
+[Part : TS_CMP_PART]
+    Lines    : TS_CMP_LINE
+    Repeat   : TS_CMP_LINE : TS_CMP_COLL
+    Scrolled : Vertical
+
+[Line : TS_CMP_LINE]
+    Fields  : TS_CMP_F0, TS_CMP_F1, TS_CMP_F2, TS_CMP_F3, TS_CMP_F4, TS_CMP_F5, TS_CMP_F6, TS_CMP_F7, TS_CMP_F8
+    XML Tag : "COMPANY"
+
+[Field : TS_CMP_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_CMP_F1]
+    Set as  : $GUID
+    XML Tag : "GUID"
+
+[Field : TS_CMP_F2]
+    Set as  : $BooksFrom
+    XML Tag : "BOOKSBEGINNINGFROM"
+
+[Field : TS_CMP_F3]
+    Set as  : $StartingFrom
+    XML Tag : "STARTINGFROM"
+
+[Field : TS_CMP_F4]
+    Set as  : $EndingAt
+    XML Tag : "ENDINGAT"
+
+[Field : TS_CMP_F5]
+    Set as  : $CountryName
+    XML Tag : "COUNTRYNAME"
+
+[Field : TS_CMP_F6]
+    Set as  : $StateName
+    XML Tag : "STATENAME"
+
+[Field : TS_CMP_F7]
+    Set as  : $GSTIN
+    XML Tag : "GSTIN"
+
+[Field : TS_CMP_F8]
+    Set as  : $AlterID
+    XML Tag : "ALTERID"
+
+;; Company collection is gateway-level — no filter needed
+[Collection : TS_CMP_COLL]
+    Type : Company
+
+;; =========================================================================
+;; LEDGER GROUPS (Group masters)
+;; =========================================================================
+
+[Report : TS_GRP_REPORT]
+    Form : TS_GRP_FORM
+
+[Form : TS_GRP_FORM]
+    Parts   : TS_GRP_PART
+    XML Tag : "TS_GRP_LIST"
+
+[Part : TS_GRP_PART]
+    Lines    : TS_GRP_LINE
+    Repeat   : TS_GRP_LINE : TS_GRP_COLL
+    Scrolled : Vertical
+
+[Line : TS_GRP_LINE]
+    Fields  : TS_GRP_F0, TS_GRP_F1, TS_GRP_F2, TS_GRP_F3, TS_GRP_F4, TS_GRP_F5, TS_GRP_F6
+    XML Tag : "GROUP"
+
+[Field : TS_GRP_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_GRP_F1]
+    Set as  : $GUID
+    XML Tag : "GUID"
+
+[Field : TS_GRP_F2]
+    Set as  : $Parent
+    XML Tag : "PARENT"
+
+[Field : TS_GRP_F3]
+    Set as  : $$YesNo:$IsDeemedPositive
+    XML Tag : "ISDEEMEDPOSITIVE"
+
+[Field : TS_GRP_F4]
+    Set as  : $$YesNo:$IsRevenue
+    XML Tag : "ISREVENUE"
+
+[Field : TS_GRP_F5]
+    Set as  : $$YesNo:$AffectsStock
+    XML Tag : "AFFECTSSTOCK"
+
+[Field : TS_GRP_F6]
+    Set as  : $AlterID
+    XML Tag : "ALTERID"
+
+[Collection : TS_GRP_COLL]
+    Type   : Group
+;; =========================================================================
+;; LEDGER MASTERS
+;; =========================================================================
+
+[Report : TS_LED_REPORT]
+    Form : TS_LED_FORM
+
+[Form : TS_LED_FORM]
+    Parts   : TS_LED_PART
+    XML Tag : "TS_LED_LIST"
+
+[Part : TS_LED_PART]
+    Lines    : TS_LED_LINE
+    Repeat   : TS_LED_LINE : TS_LED_COLL
+    Scrolled : Vertical
+
+[Line : TS_LED_LINE]
+    Fields  : TS_LED_F0, TS_LED_F1, TS_LED_F2, TS_LED_F3, TS_LED_F4, TS_LED_F5, TS_LED_F6, TS_LED_F7, TS_LED_F8, TS_LED_F9, TS_LED_F10, TS_LED_F11, TS_LED_F12, TS_LED_F13, TS_LED_F14
+    XML Tag : "LEDGER"
+
+[Field : TS_LED_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_LED_F1]
+    Set as  : $GUID
+    XML Tag : "GUID"
+
+[Field : TS_LED_F2]
+    Set as  : $Parent
+    XML Tag : "PARENT"
+
+[Field : TS_LED_F3]
+    Set as  : $$YesNo:$IsDeemedPositive
+    XML Tag : "ISDEEMEDPOSITIVE"
+
+[Field : TS_LED_F4]
+    Set as  : $OpeningBalance
+    XML Tag : "OPENINGBALANCE"
+
+[Field : TS_LED_F5]
+    Set as  : $ClosingBalance
+    XML Tag : "CLOSINGBALANCE"
+
+[Field : TS_LED_F6]
+    Set as  : $GSTRegistrationType
+    XML Tag : "GSTREGISTRATIONTYPE"
+
+[Field : TS_LED_F7]
+    Set as  : $GSTIN
+    XML Tag : "GSTIN"
+
+[Field : TS_LED_F8]
+    Set as  : $IncomeTaxNumber
+    XML Tag : "INCOMETAXNUMBER"
+
+[Field : TS_LED_F9]
+    Set as  : $LedgerMobile
+    XML Tag : "LEDGERMOBILE"
+
+[Field : TS_LED_F10]
+    Set as  : $LedgerEmail
+    XML Tag : "LEDGEREMAIL"
+
+[Field : TS_LED_F11]
+    Set as  : $CountryName
+    XML Tag : "COUNTRYNAME"
+
+[Field : TS_LED_F12]
+    Set as  : $LedgerStateName
+    XML Tag : "LEDGERSTATENAME"
+
+[Field : TS_LED_F13]
+    Set as  : $PINCode
+    XML Tag : "PINCODE"
+
+[Field : TS_LED_F14]
+    Set as  : $AlterID
+    XML Tag : "ALTERID"
+
+[Collection : TS_LED_COLL]
+    Type   : Ledger
+;; =========================================================================
+;; UNITS OF MEASURE
+;; =========================================================================
+
+[Report : TS_UNIT_REPORT]
+    Form : TS_UNIT_FORM
+
+[Form : TS_UNIT_FORM]
+    Parts   : TS_UNIT_PART
+    XML Tag : "TS_UNIT_LIST"
+
+[Part : TS_UNIT_PART]
+    Lines    : TS_UNIT_LINE
+    Repeat   : TS_UNIT_LINE : TS_UNIT_COLL
+    Scrolled : Vertical
+
+[Line : TS_UNIT_LINE]
+    Fields  : TS_UNIT_F0, TS_UNIT_F1, TS_UNIT_F2, TS_UNIT_F3, TS_UNIT_F4, TS_UNIT_F5
+    XML Tag : "UNIT"
+
+[Field : TS_UNIT_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_UNIT_F1]
+    Set as  : $GUID
+    XML Tag : "GUID"
+
+[Field : TS_UNIT_F2]
+    Set as  : $GSTUnitName
+    XML Tag : "GSTUNITNAME"
+
+[Field : TS_UNIT_F3]
+    Set as  : $FormalName
+    XML Tag : "FORMALNAME"
+
+[Field : TS_UNIT_F4]
+    Set as  : $$YesNo:$IsSimpleUnit
+    XML Tag : "ISSIMPLEUNIT"
+
+[Field : TS_UNIT_F5]
+    Set as  : $AlterID
+    XML Tag : "ALTERID"
+
+[Collection : TS_UNIT_COLL]
+    Type   : Unit
+;; =========================================================================
+;; STOCK GROUPS
+;; =========================================================================
+
+[Report : TS_SGRP_REPORT]
+    Form : TS_SGRP_FORM
+
+[Form : TS_SGRP_FORM]
+    Parts   : TS_SGRP_PART
+    XML Tag : "TS_SGRP_LIST"
+
+[Part : TS_SGRP_PART]
+    Lines    : TS_SGRP_LINE
+    Repeat   : TS_SGRP_LINE : TS_SGRP_COLL
+    Scrolled : Vertical
+
+[Line : TS_SGRP_LINE]
+    Fields  : TS_SGRP_F0, TS_SGRP_F1, TS_SGRP_F2, TS_SGRP_F3, TS_SGRP_F4
+    XML Tag : "STOCKGROUP"
+
+[Field : TS_SGRP_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_SGRP_F1]
+    Set as  : $GUID
+    XML Tag : "GUID"
+
+[Field : TS_SGRP_F2]
+    Set as  : $Parent
+    XML Tag : "PARENT"
+
+[Field : TS_SGRP_F3]
+    Set as  : $$YesNo:$IsAddable
+    XML Tag : "ISADDABLE"
+
+[Field : TS_SGRP_F4]
+    Set as  : $AlterID
+    XML Tag : "ALTERID"
+
+[Collection : TS_SGRP_COLL]
+    Type   : StockGroup
+;; =========================================================================
+;; GODOWNS (Warehouses / Storage Locations)
+;; =========================================================================
+
+[Report : TS_GDN_REPORT]
+    Form : TS_GDN_FORM
+
+[Form : TS_GDN_FORM]
+    Parts   : TS_GDN_PART
+    XML Tag : "TS_GDN_LIST"
+
+[Part : TS_GDN_PART]
+    Lines    : TS_GDN_LINE
+    Repeat   : TS_GDN_LINE : TS_GDN_COLL
+    Scrolled : Vertical
+
+[Line : TS_GDN_LINE]
+    Fields  : TS_GDN_F0, TS_GDN_F1, TS_GDN_F2, TS_GDN_F3, TS_GDN_F4
+    XML Tag : "GODOWN"
+
+[Field : TS_GDN_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_GDN_F1]
+    Set as  : $GUID
+    XML Tag : "GUID"
+
+[Field : TS_GDN_F2]
+    Set as  : $Parent
+    XML Tag : "PARENT"
+
+[Field : TS_GDN_F3]
+    Set as  : $$YesNo:$HasNoSpace
+    XML Tag : "HASNOSTOCK"
+
+[Field : TS_GDN_F4]
+    Set as  : $AlterID
+    XML Tag : "ALTERID"
+
+[Collection : TS_GDN_COLL]
+    Type   : Godown
+;; =========================================================================
+;; VOUCHER TYPES
+;; =========================================================================
+
+[Report : TS_VTYP_REPORT]
+    Form : TS_VTYP_FORM
+
+[Form : TS_VTYP_FORM]
+    Parts   : TS_VTYP_PART
+    XML Tag : "TS_VTYP_LIST"
+
+[Part : TS_VTYP_PART]
+    Lines    : TS_VTYP_LINE
+    Repeat   : TS_VTYP_LINE : TS_VTYP_COLL
+    Scrolled : Vertical
+
+[Line : TS_VTYP_LINE]
+    Fields  : TS_VTYP_F0, TS_VTYP_F1, TS_VTYP_F2, TS_VTYP_F3, TS_VTYP_F4, TS_VTYP_F5
+    XML Tag : "VOUCHERTYPE"
+
+[Field : TS_VTYP_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_VTYP_F1]
+    Set as  : $GUID
+    XML Tag : "GUID"
+
+[Field : TS_VTYP_F2]
+    Set as  : $Parent
+    XML Tag : "PARENT"
+
+[Field : TS_VTYP_F3]
+    Set as  : $NumberingMethod
+    XML Tag : "NUMBERINGMETHOD"
+
+[Field : TS_VTYP_F4]
+    Set as  : $$YesNo:$IsActive
+    XML Tag : "ISACTIVE"
+
+[Field : TS_VTYP_F5]
+    Set as  : $AlterID
+    XML Tag : "ALTERID"
+
+[Collection : TS_VTYP_COLL]
+    Type   : VoucherType
+;; =========================================================================
+;; STOCK ITEMS
+;; =========================================================================
+
+[Report : TS_SITM_REPORT]
+    Form : TS_SITM_FORM
+
+[Form : TS_SITM_FORM]
+    Parts   : TS_SITM_PART
+    XML Tag : "TS_SITM_LIST"
+
+[Part : TS_SITM_PART]
+    Lines    : TS_SITM_LINE
+    Repeat   : TS_SITM_LINE : TS_SITM_COLL
+    Scrolled : Vertical
+
+[Line : TS_SITM_LINE]
+    Fields  : TS_SITM_F0, TS_SITM_F1, TS_SITM_F2, TS_SITM_F3, TS_SITM_F4, TS_SITM_F5, TS_SITM_F6, TS_SITM_F7, TS_SITM_F8, TS_SITM_F9, TS_SITM_F10, TS_SITM_F11, TS_SITM_F12, TS_SITM_F13, TS_SITM_F14, TS_SITM_F15
+    XML Tag : "STOCKITEM"
+
+[Field : TS_SITM_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_SITM_F1]
+    Set as  : $GUID
+    XML Tag : "GUID"
+
+[Field : TS_SITM_F2]
+    Set as  : $Parent
+    XML Tag : "PARENT"
+
+[Field : TS_SITM_F3]
+    Set as  : $Category
+    XML Tag : "CATEGORY"
+
+[Field : TS_SITM_F4]
+    Set as  : $BaseUnits
+    XML Tag : "BASEUNITS"
+
+[Field : TS_SITM_F5]
+    Set as  : $GSTApplicable
+    XML Tag : "GSTAPPLICABLE"
+
+[Field : TS_SITM_F6]
+    Set as  : $GSTTypeOfSupply
+    XML Tag : "GSTTYPEOFSUPPLY"
+
+[Field : TS_SITM_F7]
+    Set as  : $HSNCode
+    XML Tag : "HSNCODE"
+
+[Field : TS_SITM_F8]
+    Set as  : $Description
+    XML Tag : "DESCRIPTION"
+
+[Field : TS_SITM_F9]
+    Set as  : $OpeningBalance
+    XML Tag : "OPENINGBALANCE"
+
+[Field : TS_SITM_F10]
+    Set as  : $OpeningRate
+    XML Tag : "OPENINGRATE"
+
+[Field : TS_SITM_F11]
+    Set as  : $OpeningValue
+    XML Tag : "OPENINGVALUE"
+
+[Field : TS_SITM_F12]
+    Set as  : $ClosingBalance
+    XML Tag : "CLOSINGBALANCE"
+
+[Field : TS_SITM_F13]
+    Set as  : $ClosingRate
+    XML Tag : "CLOSINGRATE"
+
+[Field : TS_SITM_F14]
+    Set as  : $ClosingValue
+    XML Tag : "CLOSINGVALUE"
+
+[Field : TS_SITM_F15]
+    Set as  : $AlterID
+    XML Tag : "ALTERID"
+
+[Collection : TS_SITM_COLL]
+    Type   : StockItem
+;; =========================================================================
+;; VOUCHERS  (with ledger entries + inventory entries sub-parts)
+;; =========================================================================
+
+[Report : TS_VOC_REPORT]
+    Form : TS_VOC_FORM
+
+[Form : TS_VOC_FORM]
+    Parts   : TS_VOC_PART
+    XML Tag : "TS_VOC_LIST"
+
+[Part : TS_VOC_PART]
+    Lines    : TS_VOC_LINE
+    Repeat   : TS_VOC_LINE : TS_VOC_COLL
+    Scrolled : Vertical
+
+[Line : TS_VOC_LINE]
+    Fields  : TS_VOC_F0, TS_VOC_F1, TS_VOC_F2, TS_VOC_F3, TS_VOC_F4, TS_VOC_F5, TS_VOC_F6, TS_VOC_F7, TS_VOC_F8, TS_VOC_F9
+    Explode : TS_VOC_SP0, TS_VOC_SP1
+    XML Tag : "VOUCHER"
+
+[Field : TS_VOC_F0]
+    Set as  : $VoucherNumber
+    XML Tag : "VOUCHERNUMBER"
+
+[Field : TS_VOC_F1]
+    Set as  : $VoucherTypeName
+    XML Tag : "VOUCHERTYPENAME"
+
+[Field : TS_VOC_F2]
+    Set as  : $Date
+    XML Tag : "DATE"
+
+[Field : TS_VOC_F3]
+    Set as  : $PartyLedgerName
+    XML Tag : "PARTYLEDGERNAME"
+
+[Field : TS_VOC_F4]
+    Set as  : $Narration
+    XML Tag : "NARRATION"
+
+[Field : TS_VOC_F5]
+    Set as  : $$YesNo:$IsInvoice
+    XML Tag : "ISINVOICE"
+
+[Field : TS_VOC_F6]
+    Set as  : $$YesNo:$IsCancelled
+    XML Tag : "ISCANCELLED"
+
+[Field : TS_VOC_F7]
+    Set as  : $$YesNo:$IsOptional
+    XML Tag : "ISOPTIONAL"
+
+[Field : TS_VOC_F8]
+    Set as  : $GUID
+    XML Tag : "GUID"
+
+[Field : TS_VOC_F9]
+    Set as  : $AlterID
+    XML Tag : "ALTERID"
+
+;; Voucher collection: no TDL-side date filter — date window applied in Python
+;; after parsing ($$IsWithinPeriod does not reliably respect HTTP STATICVARIABLES).
+
+[Collection : TS_VOC_COLL]
+    Type   : Voucher
+
+;; ── Ledger Entries sub-part ──────────────────────────────────────────────
+
+[Part : TS_VOC_SP0]
+    Lines  : TS_VOC_SP0_LINE
+    Repeat : TS_VOC_SP0_LINE : AllLedgerEntries
+
+[Line : TS_VOC_SP0_LINE]
+    Fields  : TS_VOC_SP0_F0, TS_VOC_SP0_F1, TS_VOC_SP0_F2
+    XML Tag : "ALLLEDGERENTRIES.LIST"
+
+[Field : TS_VOC_SP0_F0]
+    Set as  : $LedgerName
+    XML Tag : "LEDGERNAME"
+
+[Field : TS_VOC_SP0_F1]
+    Set as  : $$YesNo:$IsDeemedPositive
+    XML Tag : "ISDEEMEDPOSITIVE"
+
+[Field : TS_VOC_SP0_F2]
+    Set as  : $Amount
+    XML Tag : "AMOUNT"
+
+;; ── Inventory Entries sub-part ───────────────────────────────────────────
+
+[Part : TS_VOC_SP1]
+    Lines  : TS_VOC_SP1_LINE
+    Repeat : TS_VOC_SP1_LINE : AllInventoryEntries
+
+[Line : TS_VOC_SP1_LINE]
+    Fields  : TS_VOC_SP1_F0, TS_VOC_SP1_F1, TS_VOC_SP1_F2, TS_VOC_SP1_F3, TS_VOC_SP1_F4, TS_VOC_SP1_F5
+    XML Tag : "ALLINVENTORYENTRIES.LIST"
+
+[Field : TS_VOC_SP1_F0]
+    Set as  : $StockItemName
+    XML Tag : "STOCKITEMNAME"
+
+[Field : TS_VOC_SP1_F1]
+    Set as  : $$YesNo:$IsDeemedPositive
+    XML Tag : "ISDEEMEDPOSITIVE"
+
+[Field : TS_VOC_SP1_F2]
+    Set as  : $ActualQty
+    XML Tag : "ACTUALQTY"
+
+[Field : TS_VOC_SP1_F3]
+    Set as  : $Rate
+    XML Tag : "RATE"
+
+[Field : TS_VOC_SP1_F4]
+    Set as  : $Amount
+    XML Tag : "AMOUNT"
+
+[Field : TS_VOC_SP1_F5]
+    Set as  : $GodownName
+    XML Tag : "GODOWNNAME"

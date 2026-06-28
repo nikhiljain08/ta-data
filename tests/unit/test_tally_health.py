@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
-
 from app.client.tally_health import TallyHealth, TallyHealthChecker
 from tests.mock_tally.server import EMPTY_RESPONSE, PING_OK_RESPONSE, MockTallyServer
 
@@ -48,9 +46,7 @@ class TestTallyHealthChecker:
 
     def test_result_is_cached(self, mock_tally: MockTallyServer) -> None:
         mock_tally.set_response(PING_OK_RESPONSE)
-        checker = TallyHealthChecker(
-            settings=mock_tally.tally_settings(), cache_ttl_seconds=60.0
-        )
+        checker = TallyHealthChecker(settings=mock_tally.tally_settings(), cache_ttl_seconds=60.0)
         h1 = checker.check()
         # Queue a different response — cached result should be returned instead
         mock_tally.set_response(EMPTY_RESPONSE)
@@ -60,9 +56,7 @@ class TestTallyHealthChecker:
 
     def test_force_bypasses_cache(self, mock_tally: MockTallyServer) -> None:
         mock_tally.set_response(PING_OK_RESPONSE)
-        checker = TallyHealthChecker(
-            settings=mock_tally.tally_settings(), cache_ttl_seconds=60.0
-        )
+        checker = TallyHealthChecker(settings=mock_tally.tally_settings(), cache_ttl_seconds=60.0)
         checker.check()
         mock_tally.set_response(EMPTY_RESPONSE)
         h2 = checker.check(force=True)
@@ -71,9 +65,7 @@ class TestTallyHealthChecker:
 
     def test_invalidate_clears_cache(self, mock_tally: MockTallyServer) -> None:
         mock_tally.set_response(PING_OK_RESPONSE)
-        checker = TallyHealthChecker(
-            settings=mock_tally.tally_settings(), cache_ttl_seconds=60.0
-        )
+        checker = TallyHealthChecker(settings=mock_tally.tally_settings(), cache_ttl_seconds=60.0)
         h1 = checker.check()
         checker.invalidate()
         mock_tally.set_response(EMPTY_RESPONSE)

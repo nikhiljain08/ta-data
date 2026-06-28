@@ -48,6 +48,11 @@ class BaseSyncService[T](ABC):
                 alter_id = 0 if full else cp.get_alter_id(company_name, self.entity_name)
                 xml = self._build_xml(company_name, alter_id)
                 records = self._fetch_and_parse(xml)
+                # AlterID filtering is done here, not in TDL: custom variables
+                # passed via HTTP STATICVARIABLES are not reliably accessible in
+                # collection filters, so Tally returns the full set every time.
+                if not full and alter_id > 0:
+                    records = [r for r in records if getattr(r, "alter_id", 0) > alter_id]
                 count = 0
                 if records:
                     repo = self._make_repo(session)

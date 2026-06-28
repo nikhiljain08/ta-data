@@ -7,7 +7,12 @@ from app.models.domain.ledger_group import LedgerGroupRecord
 from app.models.domain.stock_group import StockGroupRecord
 from app.models.domain.stock_item import StockItemRecord
 from app.models.domain.unit import UnitRecord
-from app.models.domain.voucher import GstDetail, VoucherInventoryEntry, VoucherLedgerEntry, VoucherRecord
+from app.models.domain.voucher import (
+    GstDetail,
+    VoucherInventoryEntry,
+    VoucherLedgerEntry,
+    VoucherRecord,
+)
 from app.models.domain.voucher_type import VoucherTypeRecord
 
 __all__ = [

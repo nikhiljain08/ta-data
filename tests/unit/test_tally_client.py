@@ -11,7 +11,6 @@ import pytest
 
 from app.client.tally_client import (
     TallyClient,
-    TallyConnectionError,
     TallyEmptyResponseError,
     TallyRequestError,
     _backoff_wait,
@@ -93,11 +92,9 @@ class TestTallyClientRequest:
         payload_with_unicode = "<ENVELOPE><NAME>Aadhaar क</NAME></ENVELOPE>"
         with TallyClient(mock_tally.tally_settings()) as client:
             client.request(payload_with_unicode)
-        assert "क".encode("utf-8") in mock_tally.last_request_body
+        assert "क".encode() in mock_tally.last_request_body
 
-    def test_raises_tally_request_error_on_status_1(
-        self, mock_tally: MockTallyServer
-    ) -> None:
+    def test_raises_tally_request_error_on_status_1(self, mock_tally: MockTallyServer) -> None:
         mock_tally.set_response(APP_ERROR_RESPONSE)
         with TallyClient(mock_tally.tally_settings()) as client:
             with pytest.raises(TallyRequestError) as exc_info:
@@ -139,9 +136,7 @@ class TestTallyClientIsAlive:
         with TallyClient(mock_tally.tally_settings()) as client:
             assert client.is_alive() is True
 
-    def test_returns_false_when_tally_returns_empty(
-        self, mock_tally: MockTallyServer
-    ) -> None:
+    def test_returns_false_when_tally_returns_empty(self, mock_tally: MockTallyServer) -> None:
         mock_tally.set_response(EMPTY_RESPONSE)
         with TallyClient(mock_tally.tally_settings()) as client:
             assert client.is_alive() is False
@@ -162,9 +157,7 @@ class TestTallyClientStreamRequest:
         assembled = b"".join(chunks)
         assert assembled == PING_OK_RESPONSE
 
-    def test_yields_nothing_on_empty_response(
-        self, mock_tally: MockTallyServer
-    ) -> None:
+    def test_yields_nothing_on_empty_response(self, mock_tally: MockTallyServer) -> None:
         mock_tally.set_response(EMPTY_RESPONSE)
         with TallyClient(mock_tally.tally_settings()) as client:
             chunks = list(client.stream_request(_SIMPLE_PAYLOAD))

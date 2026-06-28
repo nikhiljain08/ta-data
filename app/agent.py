@@ -66,7 +66,10 @@ class Agent:
                 "voucher_type": VoucherTypeSyncService(**svc_kwargs),
                 "stock_item": StockItemSyncService(**svc_kwargs),
                 "ledger": LedgerSyncService(**svc_kwargs),
-                "voucher": VoucherSyncService(**svc_kwargs),
+                "voucher": VoucherSyncService(
+                    **svc_kwargs,
+                    from_date=self._settings.sync.voucher_from_date,
+                ),
             }
             sync_engine = SyncEngine(services, self._settings.sync.entity_order)
 

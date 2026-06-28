@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-from loguru import logger
-
 from app.config.settings import LoggingSettings
 from app.logging.setup import configure_logging
 

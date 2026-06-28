@@ -35,13 +35,16 @@ class VoucherSyncService(BaseSyncService[VoucherRecord]):
     def __init__(self, *args: object, from_date: str = "", **kwargs: object) -> None:
         super().__init__(*args, **kwargs)  # type: ignore[arg-type]
         self._from_date = from_date
+        self._sync_from_date: str = ""
+        self._sync_to_date: str = ""
 
     def _build_xml(self, company_name: str, alter_id: int) -> str:
         today = datetime.date.today().strftime("%Y%m%d")
-        from_date = self._from_date or _financial_year_start()
+        self._sync_from_date = self._from_date or _financial_year_start()
+        self._sync_to_date = today
         return self._template.vouchers(
             company=company_name,
-            from_date=from_date,
+            from_date=self._sync_from_date,
             to_date=today,
             alter_id=alter_id,
         )
@@ -49,7 +52,13 @@ class VoucherSyncService(BaseSyncService[VoucherRecord]):
     def _fetch_and_parse(self, xml: str) -> list[VoucherRecord]:
         chunks = self._client.stream_request(xml)
         source: io.RawIOBase = IteratorIO(chunks)
-        return list(parse_vouchers(io.BufferedReader(source)))
+        records = list(parse_vouchers(io.BufferedReader(source)))
+        # TDL's $$IsWithinPeriod does not reliably respect HTTP STATICVARIABLES,
+        # so filter by date here instead (same pattern as AlterID for masters).
+        from_d, to_d = self._sync_from_date, self._sync_to_date
+        if from_d and to_d:
+            records = [r for r in records if r.date and from_d <= r.date <= to_d]
+        return records
 
     def _parse(self, source: XmlSource) -> Iterator[VoucherRecord]:
         return parse_vouchers(source)

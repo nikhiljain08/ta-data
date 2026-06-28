@@ -1,6 +1,5 @@
 """Unit tests for the configuration layer."""
 
-import os
 import textwrap
 from pathlib import Path
 

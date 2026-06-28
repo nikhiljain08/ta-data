@@ -1,4 +1,9 @@
-"""Unit tests for the TDL-based TemplateEngine and tally_sdk builders."""
+"""Unit tests for TemplateEngine and tally_sdk request builders.
+
+The requests no longer contain inline TDL (TDLMESSAGE).  They are plain
+``Export Data`` envelopes referencing named reports in tallysync_exports.tdl.
+Tests verify: correct REPORTNAME, correct STATICVARIABLES, valid XML.
+"""
 
 from __future__ import annotations
 
@@ -37,104 +42,70 @@ def engine() -> TemplateEngine:
 
 class TestCompanyRequest:
     def test_returns_valid_xml(self, engine: TemplateEngine) -> None:
-        xml = engine.company()
-        etree.fromstring(xml.encode())  # must not raise
+        etree.fromstring(engine.company().encode())
 
-    def test_contains_tdl_collection(self, engine: TemplateEngine) -> None:
-        xml = engine.company()
-        assert "<TDLMESSAGE>" in xml
-        assert "<COLLECTION" in xml
-
-    def test_uses_company_collection_type(self, engine: TemplateEngine) -> None:
-        xml = engine.company()
-        assert "<TYPE>Company</TYPE>" in xml
+    def test_references_cmp_report(self, engine: TemplateEngine) -> None:
+        assert "<REPORTNAME>TS_CMP_REPORT</REPORTNAME>" in engine.company()
 
     def test_no_svcurrentcompany(self, engine: TemplateEngine) -> None:
-        # Company collection is gateway-scoped; no company context should be set
-        xml = engine.company()
-        assert "SVCURRENTCOMPANY" not in xml
+        assert "SVCURRENTCOMPANY" not in engine.company()
 
-    def test_exports_company_record_tag(self, engine: TemplateEngine) -> None:
-        xml = engine.company()
-        assert "<XMLTAG>COMPANY</XMLTAG>" in xml
+    def test_no_tsalterid_emitted(self, engine: TemplateEngine) -> None:
+        # AlterID filtering is done in Python, not sent to Tally.
+        assert "TSALTERID" not in engine.company()
 
-    def test_exports_name_field(self, engine: TemplateEngine) -> None:
-        xml = engine.company()
-        assert "<XMLTAG>NAME</XMLTAG>" in xml
+    def test_no_tdlmessage(self, engine: TemplateEngine) -> None:
+        assert "TDLMESSAGE" not in engine.company()
 
-    def test_exports_guid_field(self, engine: TemplateEngine) -> None:
-        xml = engine.company()
-        assert "<XMLTAG>GUID</XMLTAG>" in xml
-
-    def test_exports_alterid_field(self, engine: TemplateEngine) -> None:
-        xml = engine.company()
-        assert "<XMLTAG>ALTERID</XMLTAG>" in xml
+    def test_export_data_request_type(self, engine: TemplateEngine) -> None:
+        assert "<TALLYREQUEST>Export Data</TALLYREQUEST>" in engine.company()
 
 
 class TestMasterRequests:
-    def test_ledgers_full_sync_valid_xml(self, engine: TemplateEngine) -> None:
-        xml = engine.ledgers(company="Acme Ltd")
-        etree.fromstring(xml.encode())
+    def test_ledgers_valid_xml(self, engine: TemplateEngine) -> None:
+        etree.fromstring(engine.ledgers(company="Acme Ltd").encode())
+
+    def test_ledgers_report_name(self, engine: TemplateEngine) -> None:
+        assert "<REPORTNAME>TS_LED_REPORT</REPORTNAME>" in engine.ledgers(company="Acme")
 
     def test_ledgers_sets_company(self, engine: TemplateEngine) -> None:
         xml = engine.ledgers(company="Acme Ltd")
         assert "<SVCURRENTCOMPANY>Acme Ltd</SVCURRENTCOMPANY>" in xml
 
-    def test_ledgers_uses_ledger_type(self, engine: TemplateEngine) -> None:
-        xml = engine.ledgers(company="Acme Ltd")
-        assert "<TYPE>Ledger</TYPE>" in xml
+    def test_ledgers_does_not_emit_tsalterid(self, engine: TemplateEngine) -> None:
+        # alter_id is accepted for interface compatibility but never sent.
+        assert "TSALTERID" not in engine.ledgers(company="Acme", alter_id=5000)
 
-    def test_ledgers_exports_ledger_tag(self, engine: TemplateEngine) -> None:
-        xml = engine.ledgers(company="Acme Ltd")
-        assert "<XMLTAG>LEDGER</XMLTAG>" in xml
+    def test_ledger_groups_report_name(self, engine: TemplateEngine) -> None:
+        assert "<REPORTNAME>TS_GRP_REPORT</REPORTNAME>" in engine.ledger_groups(company="Acme")
 
-    def test_ledgers_full_sync_no_filter(self, engine: TemplateEngine) -> None:
-        xml = engine.ledgers(company="Acme Ltd", alter_id=0)
-        assert "FILTER" not in xml
+    def test_voucher_types_report_name(self, engine: TemplateEngine) -> None:
+        assert "<REPORTNAME>TS_VTYP_REPORT</REPORTNAME>" in engine.voucher_types(company="Acme")
 
-    def test_ledgers_incremental_includes_filter(self, engine: TemplateEngine) -> None:
-        xml = engine.ledgers(company="Acme Ltd", alter_id=5000)
-        assert "FILTER" in xml
-        assert "5000" in xml
-        assert "$AlterID" in xml
+    def test_stock_groups_report_name(self, engine: TemplateEngine) -> None:
+        assert "<REPORTNAME>TS_SGRP_REPORT</REPORTNAME>" in engine.stock_groups(company="Acme")
 
-    def test_ledger_groups_uses_group_type(self, engine: TemplateEngine) -> None:
-        xml = engine.ledger_groups(company="Acme Ltd")
-        assert "<TYPE>Group</TYPE>" in xml
-        assert "<XMLTAG>GROUP</XMLTAG>" in xml
+    def test_stock_items_report_name(self, engine: TemplateEngine) -> None:
+        assert "<REPORTNAME>TS_SITM_REPORT</REPORTNAME>" in engine.stock_items(company="Acme")
 
-    def test_voucher_types_valid_xml(self, engine: TemplateEngine) -> None:
-        xml = engine.voucher_types(company="Acme Ltd")
-        etree.fromstring(xml.encode())
-        assert "<TYPE>VoucherType</TYPE>" in xml
-        assert "<XMLTAG>VOUCHERTYPE</XMLTAG>" in xml
+    def test_units_report_name(self, engine: TemplateEngine) -> None:
+        assert "<REPORTNAME>TS_UNIT_REPORT</REPORTNAME>" in engine.units(company="Acme")
 
-    def test_stock_groups_uses_stockgroup_type(self, engine: TemplateEngine) -> None:
-        xml = engine.stock_groups(company="Acme Ltd")
-        assert "<TYPE>StockGroup</TYPE>" in xml
-        assert "<XMLTAG>STOCKGROUP</XMLTAG>" in xml
+    def test_godowns_report_name(self, engine: TemplateEngine) -> None:
+        assert "<REPORTNAME>TS_GDN_REPORT</REPORTNAME>" in engine.godowns(company="Acme")
 
-    def test_stock_items_valid_xml(self, engine: TemplateEngine) -> None:
-        xml = engine.stock_items(company="Acme Ltd")
-        etree.fromstring(xml.encode())
-        assert "<TYPE>StockItem</TYPE>" in xml
-        assert "<XMLTAG>STOCKITEM</XMLTAG>" in xml
-
-    def test_units_uses_unit_type(self, engine: TemplateEngine) -> None:
-        xml = engine.units(company="Acme Ltd")
-        assert "<TYPE>Unit</TYPE>" in xml
-        assert "<XMLTAG>UNIT</XMLTAG>" in xml
-
-    def test_godowns_uses_godown_type(self, engine: TemplateEngine) -> None:
-        xml = engine.godowns(company="Acme Ltd")
-        assert "<TYPE>Godown</TYPE>" in xml
-        assert "<XMLTAG>GODOWN</XMLTAG>" in xml
+    def test_no_tdlmessage_in_masters(self, engine: TemplateEngine) -> None:
+        assert "TDLMESSAGE" not in engine.ledgers(company="Acme")
 
 
 class TestVoucherRequest:
     def test_valid_xml(self, engine: TemplateEngine) -> None:
         xml = engine.vouchers(company="Acme", from_date="20240401", to_date="20240430")
         etree.fromstring(xml.encode())
+
+    def test_report_name(self, engine: TemplateEngine) -> None:
+        xml = engine.vouchers(company="Acme", from_date="20240401", to_date="20240430")
+        assert "<REPORTNAME>TS_VOC_REPORT</REPORTNAME>" in xml
 
     def test_includes_svfromdate(self, engine: TemplateEngine) -> None:
         xml = engine.vouchers(company="Acme", from_date="20240401", to_date="20240430")
@@ -144,35 +115,15 @@ class TestVoucherRequest:
         xml = engine.vouchers(company="Acme", from_date="20240401", to_date="20240430")
         assert "<SVTODATE>20240430</SVTODATE>" in xml
 
-    def test_uses_voucher_type(self, engine: TemplateEngine) -> None:
-        xml = engine.vouchers(company="Acme", from_date="20240401", to_date="20240430")
-        assert "<TYPE>Voucher</TYPE>" in xml
-
-    def test_exports_voucher_tag(self, engine: TemplateEngine) -> None:
-        xml = engine.vouchers(company="Acme", from_date="20240401", to_date="20240430")
-        assert "<XMLTAG>VOUCHER</XMLTAG>" in xml
-
-    def test_includes_date_filter_formula(self, engine: TemplateEngine) -> None:
-        xml = engine.vouchers(company="Acme", from_date="20240401", to_date="20240430")
-        assert "$$IsWithinPeriod:$Date" in xml
-
-    def test_incremental_combines_date_and_alterid_filter(self, engine: TemplateEngine) -> None:
+    def test_does_not_emit_tsalterid(self, engine: TemplateEngine) -> None:
         xml = engine.vouchers(
             company="Acme", from_date="20240401", to_date="20240430", alter_id=1234
         )
-        assert "1234" in xml
-        assert "$AlterID" in xml
-        assert "$$IsWithinPeriod:$Date" in xml
+        assert "TSALTERID" not in xml
 
-    def test_includes_ledger_entries_sub_collection(self, engine: TemplateEngine) -> None:
+    def test_no_tdlmessage(self, engine: TemplateEngine) -> None:
         xml = engine.vouchers(company="Acme", from_date="20240401", to_date="20240430")
-        assert "AllLedgerEntries" in xml
-        assert "<XMLTAG>ALLLEDGERENTRIES.LIST</XMLTAG>" in xml
-
-    def test_includes_inventory_entries_sub_collection(self, engine: TemplateEngine) -> None:
-        xml = engine.vouchers(company="Acme", from_date="20240401", to_date="20240430")
-        assert "AllInventoryEntries" in xml
-        assert "<XMLTAG>ALLINVENTORYENTRIES.LIST</XMLTAG>" in xml
+        assert "TDLMESSAGE" not in xml
 
     def test_invalid_from_date_raises(self, engine: TemplateEngine) -> None:
         with pytest.raises(TemplateError, match="YYYYMMDD"):
@@ -192,11 +143,11 @@ class TestValidation:
         with pytest.raises(TemplateError, match="company name"):
             engine.ledgers(company="   ")
 
-    def test_company_name_with_spaces_works(self, engine: TemplateEngine) -> None:
+    def test_company_with_spaces_works(self, engine: TemplateEngine) -> None:
         xml = engine.ledgers(company="Acme Private Limited")
         assert "Acme Private Limited" in xml
 
-    def test_company_name_is_stripped(self, engine: TemplateEngine) -> None:
+    def test_company_is_stripped(self, engine: TemplateEngine) -> None:
         xml = engine.ledgers(company="  Acme Ltd  ")
         assert "<SVCURRENTCOMPANY>Acme Ltd</SVCURRENTCOMPANY>" in xml
 

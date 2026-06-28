@@ -102,6 +102,7 @@ class SyncSettings(BaseSettings):
     full_sync_on_startup: bool = False
     incremental_interval_minutes: int = 15
     full_sync_cron: str = "0 2 * * *"
+    voucher_from_date: str = ""
     entity_order: list[str] = Field(
         default=[
             "company",
@@ -210,9 +211,9 @@ class Settings(BaseSettings):
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         yaml_path = _yaml_path_ctx.get()
         return (
-            init_settings,   # highest: direct kwargs (for tests)
-            env_settings,    # second:  real environment variables
-            dotenv_settings, # third:   .env file
+            init_settings,  # highest: direct kwargs (for tests)
+            env_settings,  # second:  real environment variables
+            dotenv_settings,  # third:   .env file
             _YamlConfigSource(settings_cls, yaml_path),  # fourth: config.yaml
         )
 

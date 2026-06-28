@@ -15,9 +15,11 @@ from app.parser.base import (
     name_of,
     quantity,
     rate,
+    tally_date,
     text,
     text_list,
 )
+
 
 # ── Helpers to build test elements ────────────────────────────────────────────
 
@@ -49,6 +51,29 @@ def _elem(xml: str) -> etree._Element:
     return etree.fromstring(xml.encode())
 
 
+# ── tally_date ──────────────────────────────────────────────────────────────────
+
+
+class TestTallyDate:
+    def test_display_format_two_digit_day(self) -> None:
+        assert tally_date(_elem("<R><D>30-Jun-26</D></R>"), "D") == "20260630"
+
+    def test_display_format_one_digit_day(self) -> None:
+        assert tally_date(_elem("<R><D>1-Apr-17</D></R>"), "D") == "20170401"
+
+    def test_already_yyyymmdd_passthrough(self) -> None:
+        assert tally_date(_elem("<R><D>20240401</D></R>"), "D") == "20240401"
+
+    def test_empty_returns_default(self) -> None:
+        assert tally_date(_elem("<R><D></D></R>"), "D") == ""
+
+    def test_missing_returns_default(self) -> None:
+        assert tally_date(_elem("<R></R>"), "D") == ""
+
+    def test_unparseable_returns_default(self) -> None:
+        assert tally_date(_elem("<R><D>not-a-date</D></R>"), "D") == ""
+
+
 # ── iter_collection ────────────────────────────────────────────────────────────
 
 
@@ -73,6 +98,13 @@ class TestIterCollection:
     def test_empty_collection(self) -> None:
         xml = b"<ENVELOPE><BODY><DATA><COLLECTION/></DATA></BODY></ENVELOPE>"
         assert list(iter_collection(xml, "ITEM")) == []
+
+    def test_cp1252_fallback_on_registered_trademark(self) -> None:
+        # TallyPrime sometimes embeds Windows-1252 bytes (® = 0xAE) inside
+        # XML declared as UTF-8.  iter_collection must decode as cp1252.
+        xml = b"<ENVELOPE><COLLECTION><ITEM><NAME>Brand\xae Name</NAME></ITEM></COLLECTION></ENVELOPE>"
+        items = list(iter_collection(xml, "ITEM"))
+        assert len(items) == 1
 
 
 # ── text ──────────────────────────────────────────────────────────────────────

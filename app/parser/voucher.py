@@ -24,7 +24,7 @@ def _build_record(elem: etree._Element) -> VoucherRecord:
     return VoucherRecord(
         voucher_number=base.text(elem, "VOUCHERNUMBER"),
         voucher_type=base.text(elem, "VOUCHERTYPENAME"),
-        date=base.text(elem, "DATE"),
+        date=base.tally_date(elem, "DATE"),
         party_ledger=base.text(elem, "PARTYLEDGERNAME"),
         narration=base.text(elem, "NARRATION"),
         is_invoice=base.bool_yes(elem, "ISINVOICE"),

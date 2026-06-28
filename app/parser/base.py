@@ -18,6 +18,7 @@ Rates from stock items arrive as "100.0/Nos"; quantity() strips the unit suffix.
 
 from __future__ import annotations
 
+import datetime
 import io
 from collections.abc import Iterator
 from decimal import Decimal, InvalidOperation
@@ -27,6 +28,10 @@ import lxml.etree as etree
 
 type XmlSource = bytes | IO[bytes]
 
+# Tally serialises dates in its UI display format (e.g. "30-Jun-26", "1-Apr-17"),
+# which is not fixed-width.  tally_date() normalises these to YYYYMMDD.
+_DATE_FORMATS = ("%d-%b-%y", "%d-%b-%Y", "%d-%m-%Y", "%Y-%m-%d")
+
 
 def iter_collection(source: XmlSource, tag: str) -> Iterator[etree._Element]:
     """Stream-parse *source*, yielding each completed element whose tag matches.
@@ -34,6 +39,13 @@ def iter_collection(source: XmlSource, tag: str) -> Iterator[etree._Element]:
     Clears each yielded element (and preceding siblings) after the caller
     finishes with it, keeping RSS bounded for large exports.
     """
+    if isinstance(source, bytes):
+        # TallyPrime sometimes embeds Windows-1252 bytes (e.g. ® = 0xAE) in XML
+        # that is declared as UTF-8.  Detect and re-encode so lxml can parse it.
+        try:
+            source.decode("utf-8")
+        except UnicodeDecodeError:
+            source = source.decode("cp1252").encode("utf-8")
     stream: IO[bytes] = io.BytesIO(source) if isinstance(source, bytes) else source
     context = etree.iterparse(stream, events=("end",), tag=tag, recover=True)
     for _, elem in context:
@@ -73,6 +85,27 @@ def integer(elem: etree._Element, path: str, default: int = 0) -> int:
 def bool_yes(elem: etree._Element, path: str) -> bool:
     """True when child element text is 'Yes' (case-insensitive)."""
     return text(elem, path).lower() == "yes"
+
+
+def tally_date(elem: etree._Element, path: str, default: str = "") -> str:
+    """Normalise a Tally date to YYYYMMDD.
+
+    Tally exports dates in its display format ("30-Jun-26", "1-Apr-17") which is
+    not fixed-width and overflows the 8-char date columns.  Convert to YYYYMMDD
+    so it fits and sorts correctly.  Returns *default* when unparseable or empty.
+    Two-digit years follow Python's pivot (00-68 → 20xx, 69-99 → 19xx).
+    """
+    raw = text(elem, path)
+    if not raw:
+        return default
+    if len(raw) == 8 and raw.isdigit():  # already YYYYMMDD
+        return raw
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.datetime.strptime(raw, fmt).strftime("%Y%m%d")
+        except ValueError:
+            continue
+    return default
 
 
 def decimal_amount(

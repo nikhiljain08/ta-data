@@ -21,8 +21,8 @@ Or via pytest fixture (see conftest.py):
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Callable
 
 from app.config.settings import TallySettings
 
@@ -57,9 +57,9 @@ EMPTY_RESPONSE = b""
 class _Handler(BaseHTTPRequestHandler):
     """Minimal handler that returns whatever the MockTallyServer has queued."""
 
-    server: "MockTallyServer"  # type narrowing for the shared server reference
+    server: MockTallyServer  # type narrowing for the shared server reference
 
-    def do_POST(self) -> None:  # noqa: N802
+    def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length)
         self.server.last_request_body = body
@@ -137,9 +137,7 @@ class MockTallyServer:
             retry_backoff_max=0.05,
         )
 
-    def enqueue_response(
-        self, body: bytes, *, status_code: int = 200
-    ) -> None:
+    def enqueue_response(self, body: bytes, *, status_code: int = 200) -> None:
         """Queue a response to be returned for the next request."""
         with self._lock:
             self._queue.append((body, status_code))

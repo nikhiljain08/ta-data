@@ -21,6 +21,7 @@ _db_url = os.environ.get("TALLYSYNC_DATABASE__URL")
 if not _db_url:
     try:
         from app.config.settings import Settings
+
         _db_url = Settings.from_yaml("config.yaml").database.url
     except Exception:
         pass  # fall through to alembic.ini placeholder
