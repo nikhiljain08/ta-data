@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from app.models.domain.company import CompanyRecord
 from app.parser.company import parse_companies
@@ -42,7 +43,7 @@ class TestParseCompanies:
         assert len(records) == 2
 
     def test_first_company_fields(self) -> None:
-        rec = list(parse_companies(_COMPANIES_XML))[0]
+        rec = next(parse_companies(_COMPANIES_XML))
         assert isinstance(rec, CompanyRecord)
         assert rec.name == "Acme Industries Ltd"
         assert rec.guid == "cmp-guid-001"
@@ -65,7 +66,7 @@ class TestParseCompanies:
 
     def test_records_are_immutable(self) -> None:
         rec = next(parse_companies(_COMPANIES_XML))
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             rec.name = "changed"  # type: ignore[misc]
 
     def test_name_from_attribute_preferred(self) -> None:

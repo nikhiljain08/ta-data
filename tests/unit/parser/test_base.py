@@ -6,7 +6,6 @@ import io
 from decimal import Decimal
 
 import lxml.etree as etree
-import pytest
 
 from app.parser.base import (
     bool_yes,
@@ -238,7 +237,7 @@ class TestTextList:
         assert text_list(elem, "ADDRESS.LIST", "ADDRESS") == ["123 Main St", "Mumbai"]
 
     def test_empty_list_tag(self) -> None:
-        elem = _elem("<LEDGER><ADDRESS.LIST TYPE=\"String\"/></LEDGER>")
+        elem = _elem('<LEDGER><ADDRESS.LIST TYPE="String"/></LEDGER>')
         assert text_list(elem, "ADDRESS.LIST", "ADDRESS") == []
 
     def test_missing_list_tag(self) -> None:

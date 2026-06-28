@@ -5,6 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
+from pydantic import ValidationError
 
 from app.models.domain.ledger import LedgerRecord
 from app.parser.ledger import parse_ledgers
@@ -63,7 +64,7 @@ class TestParseLedgers:
         assert len(list(parse_ledgers(_XML))) == 2
 
     def test_full_ledger_fields(self) -> None:
-        rec = list(parse_ledgers(_XML))[0]
+        rec = next(parse_ledgers(_XML))
         assert isinstance(rec, LedgerRecord)
         assert rec.name == "Customer A"
         assert rec.guid == "led-001"
@@ -97,5 +98,5 @@ class TestParseLedgers:
 
     def test_records_are_frozen(self) -> None:
         rec = next(parse_ledgers(_XML))
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             rec.name = "changed"  # type: ignore[misc]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from app.models.domain.ledger_group import LedgerGroupRecord
 from app.parser.ledger_group import parse_ledger_groups
@@ -38,7 +39,7 @@ class TestParseLedgerGroups:
         assert len(list(parse_ledger_groups(_XML))) == 2
 
     def test_root_group_has_empty_parent(self) -> None:
-        rec = list(parse_ledger_groups(_XML))[0]
+        rec = next(parse_ledger_groups(_XML))
         assert isinstance(rec, LedgerGroupRecord)
         assert rec.name == "Capital Account"
         assert rec.parent == ""
@@ -59,5 +60,5 @@ class TestParseLedgerGroups:
 
     def test_records_are_frozen(self) -> None:
         rec = next(parse_ledger_groups(_XML))
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             rec.name = "changed"  # type: ignore[misc]

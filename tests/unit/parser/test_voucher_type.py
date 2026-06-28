@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from app.models.domain.voucher_type import VoucherTypeRecord
 from app.parser.voucher_type import parse_voucher_types
@@ -42,7 +43,7 @@ class TestParseVoucherTypes:
         assert len(list(parse_voucher_types(_XML))) == 3
 
     def test_active_sales_type(self) -> None:
-        rec = list(parse_voucher_types(_XML))[0]
+        rec = next(parse_voucher_types(_XML))
         assert isinstance(rec, VoucherTypeRecord)
         assert rec.name == "Sales"
         assert rec.guid == "vt-001"
@@ -66,5 +67,5 @@ class TestParseVoucherTypes:
 
     def test_records_are_frozen(self) -> None:
         rec = next(parse_voucher_types(_XML))
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             rec.name = "changed"  # type: ignore[misc]
