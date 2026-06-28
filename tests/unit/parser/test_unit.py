@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from app.models.domain.unit import UnitRecord
 from app.parser.unit import parse_units
@@ -42,7 +43,7 @@ class TestParseUnits:
         assert len(list(parse_units(_XML))) == 3
 
     def test_simple_unit_fields(self) -> None:
-        rec = list(parse_units(_XML))[0]
+        rec = next(parse_units(_XML))
         assert isinstance(rec, UnitRecord)
         assert rec.name == "Nos"
         assert rec.guid == "unit-001"
@@ -61,5 +62,5 @@ class TestParseUnits:
 
     def test_records_are_frozen(self) -> None:
         rec = next(parse_units(_XML))
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             rec.name = "changed"  # type: ignore[misc]

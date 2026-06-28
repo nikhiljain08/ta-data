@@ -5,6 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
+from pydantic import ValidationError
 
 from app.models.domain.stock_item import StockItemRecord
 from app.parser.stock_item import parse_stock_items
@@ -47,7 +48,7 @@ class TestParseStockItems:
         assert len(list(parse_stock_items(_XML))) == 2
 
     def test_full_item_fields(self) -> None:
-        rec = list(parse_stock_items(_XML))[0]
+        rec = next(parse_stock_items(_XML))
         assert isinstance(rec, StockItemRecord)
         assert rec.name == "Widget Pro"
         assert rec.guid == "si-001"
@@ -78,7 +79,7 @@ class TestParseStockItems:
 
     def test_records_are_frozen(self) -> None:
         rec = next(parse_stock_items(_XML))
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             rec.name = "changed"  # type: ignore[misc]
 
     def test_rate_strips_unit_denominator(self) -> None:

@@ -17,19 +17,19 @@ Reads accounting data from TallyPrime via HTTP/XML and syncs it to PostgreSQL.
 | 2 | `app/client/tally_client.py` — HTTP client, retry, streaming | DONE |
 | 2 | `app/client/tally_health.py` — Health checker with cache | DONE |
 | 2 | `tests/mock_tally/server.py` — Real TCP mock server | DONE |
+| 3 | `app/xml/` — 12 XML request templates + `TemplateEngine` | DONE |
+| 4 | `app/parser/` — lxml.iterparse parsers (8 entities) | DONE |
+| 4 | `app/models/domain/` — Pydantic domain DTOs (8 records) | DONE |
 
 ### Next phase
 
-**Phase 3 — `app/xml/`** — XML request templates + TemplateEngine
-- `_base.xml` envelope template
-- Per-entity templates: `company.xml`, `ledger.xml`, `voucher.xml`, `stock_item.xml`, etc.
-- Python `TemplateEngine` class that fills placeholders without string concatenation
+**Phase 5 — `app/models/db/`** — SQLAlchemy ORM models + Alembic migrations
 
 ### Remaining phases (in order)
 
 ```
-Phase 4  — app/parser/        Streaming lxml.iterparse parsers per entity
-Phase 5  — app/models/        Pydantic domain DTOs + SQLAlchemy ORM models
+Phase 5  — app/models/db/     SQLAlchemy ORM models + Alembic initial migration
+Phase 5  — (voucher domain model included here, pre-Phase 11 parser)
 Phase 6  — app/database/      Connection factory, Alembic migrations, bulk ops
 Phase 7  — app/repositories/  Abstract repo interface + PostgreSQL implementations
 Phase 8  — app/sync/          SyncEngine state machine, CheckpointManager, retry, dedup
@@ -197,5 +197,7 @@ tests/conftest.py           Shared fixtures: test_settings, mock_tally
 ```
 Phase 0+1 (settings, logging):  13/13 passing
 Phase 2   (client, health):     28/28 passing
-Total:                          41/41 passing
+Phase 3   (xml templates):      33/33 passing
+Phase 4   (parsers + models):   81/81 passing
+Total:                         155/155 passing
 ```

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from app.models.domain.stock_group import StockGroupRecord
 from app.parser.stock_group import parse_stock_groups
@@ -34,7 +35,7 @@ class TestParseStockGroups:
         assert len(list(parse_stock_groups(_XML))) == 2
 
     def test_root_group(self) -> None:
-        rec = list(parse_stock_groups(_XML))[0]
+        rec = next(parse_stock_groups(_XML))
         assert isinstance(rec, StockGroupRecord)
         assert rec.name == "Primary"
         assert rec.guid == "sg-001"
@@ -54,5 +55,5 @@ class TestParseStockGroups:
 
     def test_records_are_frozen(self) -> None:
         rec = next(parse_stock_groups(_XML))
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             rec.name = "changed"  # type: ignore[misc]

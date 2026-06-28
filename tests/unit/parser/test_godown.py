@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from app.models.domain.godown import GodownRecord
 from app.parser.godown import parse_godowns
@@ -40,7 +41,7 @@ class TestParseGodowns:
         assert len(list(parse_godowns(_XML))) == 3
 
     def test_top_level_godown(self) -> None:
-        rec = list(parse_godowns(_XML))[0]
+        rec = next(parse_godowns(_XML))
         assert isinstance(rec, GodownRecord)
         assert rec.name == "Main Warehouse"
         assert rec.guid == "gdwn-001"
@@ -62,5 +63,5 @@ class TestParseGodowns:
 
     def test_records_are_frozen(self) -> None:
         rec = next(parse_godowns(_XML))
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             rec.name = "changed"  # type: ignore[misc]
