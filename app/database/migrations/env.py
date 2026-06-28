@@ -16,8 +16,14 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Pull the DSN from the environment so alembic.ini stays secret-free.
+# Pull the DSN: env var → config.yaml → alembic.ini placeholder.
 _db_url = os.environ.get("TALLYSYNC_DATABASE__URL")
+if not _db_url:
+    try:
+        from app.config.settings import Settings
+        _db_url = Settings.from_yaml("config.yaml").database.url
+    except Exception:
+        pass  # fall through to alembic.ini placeholder
 if _db_url:
     config.set_main_option("sqlalchemy.url", _db_url)
 

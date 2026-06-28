@@ -184,6 +184,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="TALLYSYNC_",
         env_nested_delimiter="__",
+        env_file=".env",
+        env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
     )
@@ -208,9 +210,10 @@ class Settings(BaseSettings):
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         yaml_path = _yaml_path_ctx.get()
         return (
-            init_settings,  # highest: direct kwargs (for tests)
-            env_settings,  # second:  environment variables
-            _YamlConfigSource(settings_cls, yaml_path),  # third: YAML file
+            init_settings,   # highest: direct kwargs (for tests)
+            env_settings,    # second:  real environment variables
+            dotenv_settings, # third:   .env file
+            _YamlConfigSource(settings_cls, yaml_path),  # fourth: config.yaml
         )
 
     @model_validator(mode="after")

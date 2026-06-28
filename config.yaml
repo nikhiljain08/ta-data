@@ -12,7 +12,7 @@ tally:
   company_name: ""              # leave blank to auto-detect first company
 
 database:
-  # Set TALLYSYNC_DATABASE__URL in environment for the full DSN.
+  # Set TALLYSYNC_DATABASE__URL in .env (or as an env var) — never here.
   # Example: postgresql+psycopg://user:pass@host:5432/tallysync
   url: "postgresql+psycopg://tallysync:tallysync@localhost:5432/tallysync"
   pool_size: 5
