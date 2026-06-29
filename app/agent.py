@@ -108,6 +108,8 @@ class Agent:
                 self.stop()
 
     def _start_api(self, sync_engine: object, company: str) -> None:
+        import asyncio
+
         import uvicorn
 
         from app.api.app import build_api
@@ -117,21 +119,22 @@ class Agent:
         api.dependency_overrides[_get_engine] = lambda: sync_engine
         api.dependency_overrides[_get_company] = lambda: company
 
+        host = self._settings.api.host
+        port = self._settings.api.port
+
         def _run() -> None:
-            uvicorn.run(
-                api,
-                host=self._settings.api.host,
-                port=self._settings.api.port,
-                log_level="warning",
-            )
+            try:
+                # Windows / Python 3.10+ do not auto-create an event loop in
+                # non-main threads — create one explicitly before uvicorn starts.
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                uvicorn.run(api, host=host, port=port, log_level="warning")
+            except Exception as exc:
+                logger.error("Control API crashed", error=str(exc))
 
         self._api_thread = threading.Thread(target=_run, daemon=True, name="tallysync-api")
         self._api_thread.start()
-        logger.info(
-            "Control API started",
-            host=self._settings.api.host,
-            port=self._settings.api.port,
-        )
+        logger.info("Control API started", host=host, port=port)
 
     def stop(self) -> None:
         logger.info("TallySync agent stopping")
