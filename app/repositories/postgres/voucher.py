@@ -39,6 +39,16 @@ class VoucherRepository(BaseRepository[VoucherRecord]):
 
         now = datetime.datetime.now(tz=datetime.UTC)
 
+        # Deduplicate by natural key within the batch: ON CONFLICT DO UPDATE rejects
+        # duplicate constrained values in the same INSERT command (CardinalityViolation).
+        # Keep the record with the highest alter_id when duplicates exist.
+        seen: dict[tuple[str, str], VoucherRecord] = {}
+        for rec in records:
+            key = (rec.voucher_number, rec.voucher_type)
+            if key not in seen or rec.alter_id > seen[key].alter_id:
+                seen[key] = rec
+        deduped = list(seen.values())
+
         # 1. Upsert voucher headers; get id mapping via RETURNING
         header_rows = [
             {
@@ -55,7 +65,7 @@ class VoucherRepository(BaseRepository[VoucherRecord]):
                 "alter_id": rec.alter_id,
                 "synced_at": now,
             }
-            for rec in records
+            for rec in deduped
         ]
         stmt = insert(VoucherModel).values(header_rows)
         update_dict = {col: getattr(stmt.excluded, col) for col in _VOUCHER_UPDATE}
@@ -96,7 +106,7 @@ class VoucherRepository(BaseRepository[VoucherRecord]):
         ledger_rows: list[dict[str, object]] = []
         inv_rows: list[dict[str, object]] = []
         gst_rows: list[dict[str, object]] = []
-        for rec in records:
+        for rec in deduped:
             vid = id_map.get((rec.voucher_number, rec.voucher_type))
             if vid is None:
                 continue
@@ -141,4 +151,4 @@ class VoucherRepository(BaseRepository[VoucherRecord]):
         if gst_rows:
             self._session.execute(insert(GstDetailModel).values(gst_rows))
 
-        return len(records)
+        return len(deduped)
