@@ -34,117 +34,65 @@
 ;; =========================================================================
 ;; REAL-TIME EVENT TRIGGERS
 ;; =========================================================================
-;; On every Save or Delete in TallyPrime, the matching event fires a
-;; $$HTTPGET to the TallySync agent at localhost:8765.  The agent enqueues
-;; an immediate incremental sync for just that entity.
-;;
-;; If the agent is not running the HTTP call silently fails — Tally is
-;; not affected.  The scheduled 15-min sync acts as a safety net.
+;; [System : Events] registers callbacks for TallyPrime object save/delete.
+;; Each entity has its own Function (System Events do not support parameters).
+;; $$HTTPGET fires a GET to the TallySync agent which enqueues an incremental
+;; sync for that entity.  If the agent is not running the call silently fails.
 ;; =========================================================================
 
-[Function : TSFireTrigger]
-    Parameter : pEntity  : String
-    Variable  : vURL     : String
-    Variable  : vResult  : String
+;; ── Per-entity HTTP trigger functions ────────────────────────────────────
 
-    10 : SET : vURL    : "http://127.0.0.1:8765/sync/entity/" + ##pEntity
-    20 : SET : vResult : $$HTTPGET:##vURL
+[Function : TSSyncVoucher]
+    Variable : lR : String
+    10 : SET : lR : $$HTTPGET:"http://127.0.0.1:8765/sync/entity/voucher"
 
-;; ── Voucher ──────────────────────────────────────────────────────────────
+[Function : TSSyncLedger]
+    Variable : lR : String
+    10 : SET : lR : $$HTTPGET:"http://127.0.0.1:8765/sync/entity/ledger"
 
-[Event : TSOnVoucherSave]
-    Triggers : Voucher
-    On       : Save
-    Call     : TSFireTrigger With "voucher"
+[Function : TSSyncStockItem]
+    Variable : lR : String
+    10 : SET : lR : $$HTTPGET:"http://127.0.0.1:8765/sync/entity/stock_item"
 
-[Event : TSOnVoucherDelete]
-    Triggers : Voucher
-    On       : Delete
-    Call     : TSFireTrigger With "voucher"
+[Function : TSSyncLedgerGroup]
+    Variable : lR : String
+    10 : SET : lR : $$HTTPGET:"http://127.0.0.1:8765/sync/entity/ledger_group"
 
-;; ── Ledger ───────────────────────────────────────────────────────────────
+[Function : TSSyncStockGroup]
+    Variable : lR : String
+    10 : SET : lR : $$HTTPGET:"http://127.0.0.1:8765/sync/entity/stock_group"
 
-[Event : TSOnLedgerSave]
-    Triggers : Ledger
-    On       : Save
-    Call     : TSFireTrigger With "ledger"
+[Function : TSSyncGodown]
+    Variable : lR : String
+    10 : SET : lR : $$HTTPGET:"http://127.0.0.1:8765/sync/entity/godown"
 
-[Event : TSOnLedgerDelete]
-    Triggers : Ledger
-    On       : Delete
-    Call     : TSFireTrigger With "ledger"
+[Function : TSSyncVoucherType]
+    Variable : lR : String
+    10 : SET : lR : $$HTTPGET:"http://127.0.0.1:8765/sync/entity/voucher_type"
 
-;; ── Stock Item ───────────────────────────────────────────────────────────
+[Function : TSSyncUnit]
+    Variable : lR : String
+    10 : SET : lR : $$HTTPGET:"http://127.0.0.1:8765/sync/entity/unit"
 
-[Event : TSOnStockItemSave]
-    Triggers : StockItem
-    On       : Save
-    Call     : TSFireTrigger With "stock_item"
+;; ── Event registrations ───────────────────────────────────────────────────
 
-[Event : TSOnStockItemDelete]
-    Triggers : StockItem
-    On       : Delete
-    Call     : TSFireTrigger With "stock_item"
-
-;; ── Ledger Group ─────────────────────────────────────────────────────────
-
-[Event : TSOnGroupSave]
-    Triggers : Group
-    On       : Save
-    Call     : TSFireTrigger With "ledger_group"
-
-[Event : TSOnGroupDelete]
-    Triggers : Group
-    On       : Delete
-    Call     : TSFireTrigger With "ledger_group"
-
-;; ── Stock Group ──────────────────────────────────────────────────────────
-
-[Event : TSOnStockGroupSave]
-    Triggers : StockGroup
-    On       : Save
-    Call     : TSFireTrigger With "stock_group"
-
-[Event : TSOnStockGroupDelete]
-    Triggers : StockGroup
-    On       : Delete
-    Call     : TSFireTrigger With "stock_group"
-
-;; ── Godown ───────────────────────────────────────────────────────────────
-
-[Event : TSOnGodownSave]
-    Triggers : Godown
-    On       : Save
-    Call     : TSFireTrigger With "godown"
-
-[Event : TSOnGodownDelete]
-    Triggers : Godown
-    On       : Delete
-    Call     : TSFireTrigger With "godown"
-
-;; ── Voucher Type ─────────────────────────────────────────────────────────
-
-[Event : TSOnVoucherTypeSave]
-    Triggers : VoucherType
-    On       : Save
-    Call     : TSFireTrigger With "voucher_type"
-
-[Event : TSOnVoucherTypeDelete]
-    Triggers : VoucherType
-    On       : Delete
-    Call     : TSFireTrigger With "voucher_type"
-
-;; ── Unit ─────────────────────────────────────────────────────────────────
-
-[Event : TSOnUnitSave]
-    Triggers : Unit
-    On       : Save
-    Call     : TSFireTrigger With "unit"
-
-[Event : TSOnUnitDelete]
-    Triggers : Unit
-    On       : Delete
-    Call     : TSFireTrigger With "unit"
+[System : Events]
+    Event : Save Voucher      : TSSyncVoucher
+    Event : Delete Voucher    : TSSyncVoucher
+    Event : Save Ledger       : TSSyncLedger
+    Event : Delete Ledger     : TSSyncLedger
+    Event : Save StockItem    : TSSyncStockItem
+    Event : Delete StockItem  : TSSyncStockItem
+    Event : Save Group        : TSSyncLedgerGroup
+    Event : Delete Group      : TSSyncLedgerGroup
+    Event : Save StockGroup   : TSSyncStockGroup
+    Event : Delete StockGroup : TSSyncStockGroup
+    Event : Save Godown       : TSSyncGodown
+    Event : Delete Godown     : TSSyncGodown
+    Event : Save VoucherType  : TSSyncVoucherType
+    Event : Delete VoucherType: TSSyncVoucherType
+    Event : Save Unit         : TSSyncUnit
+    Event : Delete Unit       : TSSyncUnit
 
 ;; =========================================================================
 ;; COMPANY
