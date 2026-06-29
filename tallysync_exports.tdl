@@ -32,6 +32,121 @@
 ;; server-side by the SVFROMDATE/SVTODATE period filter.
 
 ;; =========================================================================
+;; REAL-TIME EVENT TRIGGERS
+;; =========================================================================
+;; On every Save or Delete in TallyPrime, the matching event fires a
+;; $$HTTPGET to the TallySync agent at localhost:8765.  The agent enqueues
+;; an immediate incremental sync for just that entity.
+;;
+;; If the agent is not running the HTTP call silently fails — Tally is
+;; not affected.  The scheduled 15-min sync acts as a safety net.
+;; =========================================================================
+
+[Function : TSFireTrigger]
+    Parameter : pEntity  : String
+    Variable  : vURL     : String
+    Variable  : vResult  : String
+
+    10 : SET : vURL    : "http://127.0.0.1:8765/sync/entity/" + ##pEntity
+    20 : SET : vResult : $$HTTPGET:##vURL
+
+;; ── Voucher ──────────────────────────────────────────────────────────────
+
+[Event : TSOnVoucherSave]
+    Triggers : Voucher
+    On       : Save
+    Call     : TSFireTrigger With "voucher"
+
+[Event : TSOnVoucherDelete]
+    Triggers : Voucher
+    On       : Delete
+    Call     : TSFireTrigger With "voucher"
+
+;; ── Ledger ───────────────────────────────────────────────────────────────
+
+[Event : TSOnLedgerSave]
+    Triggers : Ledger
+    On       : Save
+    Call     : TSFireTrigger With "ledger"
+
+[Event : TSOnLedgerDelete]
+    Triggers : Ledger
+    On       : Delete
+    Call     : TSFireTrigger With "ledger"
+
+;; ── Stock Item ───────────────────────────────────────────────────────────
+
+[Event : TSOnStockItemSave]
+    Triggers : StockItem
+    On       : Save
+    Call     : TSFireTrigger With "stock_item"
+
+[Event : TSOnStockItemDelete]
+    Triggers : StockItem
+    On       : Delete
+    Call     : TSFireTrigger With "stock_item"
+
+;; ── Ledger Group ─────────────────────────────────────────────────────────
+
+[Event : TSOnGroupSave]
+    Triggers : Group
+    On       : Save
+    Call     : TSFireTrigger With "ledger_group"
+
+[Event : TSOnGroupDelete]
+    Triggers : Group
+    On       : Delete
+    Call     : TSFireTrigger With "ledger_group"
+
+;; ── Stock Group ──────────────────────────────────────────────────────────
+
+[Event : TSOnStockGroupSave]
+    Triggers : StockGroup
+    On       : Save
+    Call     : TSFireTrigger With "stock_group"
+
+[Event : TSOnStockGroupDelete]
+    Triggers : StockGroup
+    On       : Delete
+    Call     : TSFireTrigger With "stock_group"
+
+;; ── Godown ───────────────────────────────────────────────────────────────
+
+[Event : TSOnGodownSave]
+    Triggers : Godown
+    On       : Save
+    Call     : TSFireTrigger With "godown"
+
+[Event : TSOnGodownDelete]
+    Triggers : Godown
+    On       : Delete
+    Call     : TSFireTrigger With "godown"
+
+;; ── Voucher Type ─────────────────────────────────────────────────────────
+
+[Event : TSOnVoucherTypeSave]
+    Triggers : VoucherType
+    On       : Save
+    Call     : TSFireTrigger With "voucher_type"
+
+[Event : TSOnVoucherTypeDelete]
+    Triggers : VoucherType
+    On       : Delete
+    Call     : TSFireTrigger With "voucher_type"
+
+;; ── Unit ─────────────────────────────────────────────────────────────────
+
+[Event : TSOnUnitSave]
+    Triggers : Unit
+    On       : Save
+    Call     : TSFireTrigger With "unit"
+
+[Event : TSOnUnitDelete]
+    Triggers : Unit
+    On       : Delete
+    Call     : TSFireTrigger With "unit"
+
+;; =========================================================================
 ;; COMPANY
 ;; Type: Company (gateway-scoped — do not set SVCURRENTCOMPANY)
 ;; =========================================================================
@@ -548,8 +663,9 @@
     Set as  : $AlterID
     XML Tag : "ALTERID"
 
-;; Voucher collection: no TDL-side date filter — date window applied in Python
-;; after parsing ($$IsWithinPeriod does not reliably respect HTTP STATICVARIABLES).
+;; Type : Voucher implicitly uses SVFROMDATE / SVTODATE sent via HTTP
+;; STATICVARIABLES.  Python sends 19000101 – today so Tally returns every
+;; voucher ever entered in the company.
 
 [Collection : TS_VOC_COLL]
     Type   : Voucher

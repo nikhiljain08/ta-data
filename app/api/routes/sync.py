@@ -25,8 +25,33 @@ class SyncResultResponse(BaseModel):
     total_records: int
 
 
+class EntityTriggerResponse(BaseModel):
+    message: str
+    entity: str
+
+
 def _get_engine() -> SyncEngine:  # pragma: no cover
     raise HTTPException(status_code=503, detail="Sync engine not configured")
+
+
+def _get_company() -> str:  # pragma: no cover
+    raise HTTPException(status_code=503, detail="Company not configured")
+
+
+@router.get("/entity/{entity}", response_model=EntityTriggerResponse)
+def trigger_entity_sync(
+    entity: str,
+    background_tasks: BackgroundTasks,
+    engine: SyncEngine = Depends(_get_engine),
+    company: str = Depends(_get_company),
+) -> EntityTriggerResponse:
+    """Enqueue an immediate incremental sync for one entity.
+
+    Called by TDL event triggers ($$HTTPGET) on every Tally save/delete.
+    Returns instantly; sync runs in the background.
+    """
+    background_tasks.add_task(engine.sync_entity, company, entity)
+    return EntityTriggerResponse(message="Entity sync enqueued", entity=entity)
 
 
 @router.post("/trigger", response_model=TriggerResponse)

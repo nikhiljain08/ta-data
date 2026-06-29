@@ -34,6 +34,26 @@ class SyncEngine:
         self._services = services
         self._order = entity_order
 
+    def sync_entity(self, company_name: str, entity: str) -> SyncResult:
+        """Sync a single entity immediately — called by TDL event triggers."""
+        result = SyncResult()
+        svc = self._services.get(entity)
+        if svc is None:
+            logger.warning("Unknown entity requested", entity=entity)
+            return result
+        try:
+            count: int = svc.sync(company_name=company_name, full=False)  # type: ignore[attr-defined]
+            result.synced[entity] = count
+            logger.info(
+                "Event-triggered sync complete", entity=entity, company=company_name, records=count
+            )
+        except Exception as exc:
+            result.errors[entity] = str(exc)
+            logger.error(
+                "Event-triggered sync failed", entity=entity, company=company_name, error=str(exc)
+            )
+        return result
+
     def sync(self, company_name: str, *, full: bool = False) -> SyncResult:
         """Run sync for all configured entities in dependency order."""
         result = SyncResult()

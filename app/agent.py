@@ -97,7 +97,7 @@ class Agent:
                 sync_engine.sync(company, full=True)
 
             if self._settings.api.enabled:
-                self._start_api()
+                self._start_api(sync_engine, company)
 
             logger.info("Agent running — press Ctrl+C to stop")
             try:
@@ -107,12 +107,15 @@ class Agent:
             finally:
                 self.stop()
 
-    def _start_api(self) -> None:
+    def _start_api(self, sync_engine: object, company: str) -> None:
         import uvicorn
 
         from app.api.app import build_api
+        from app.api.routes.sync import _get_company, _get_engine
 
         api = build_api()
+        api.dependency_overrides[_get_engine] = lambda: sync_engine
+        api.dependency_overrides[_get_company] = lambda: company
 
         def _run() -> None:
             uvicorn.run(
