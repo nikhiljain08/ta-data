@@ -25,6 +25,15 @@ class CheckpointRepository:
         )
         return row.last_alter_id if row else 0
 
+    def get_last_synced_at(self, company_name: str, entity_type: str) -> datetime.datetime | None:
+        """Return the timestamp of the last successful sync, or None if never synced."""
+        row = (
+            self._session.query(SyncCheckpointModel)
+            .filter_by(company_name=company_name, entity_type=entity_type)
+            .first()
+        )
+        return row.last_synced_at if row else None
+
     def save_alter_id(
         self,
         company_name: str,

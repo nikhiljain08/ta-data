@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from typing import ClassVar
@@ -38,6 +39,9 @@ class BaseSyncService[T](ABC):
         self._client = client
         self._template = template
         self._session_factory = session_factory
+        # Set by sync() before _build_xml() is called; subclasses may read these.
+        self._is_full_sync: bool = False
+        self._last_synced_at: datetime.datetime | None = None
 
     def sync(self, company_name: str, *, full: bool = False) -> int:
         """Sync one entity for *company_name*. Returns records upserted."""
@@ -46,6 +50,8 @@ class BaseSyncService[T](ABC):
             run_id = cp.start_run(company_name, self.entity_name)
             try:
                 alter_id = 0 if full else cp.get_alter_id(company_name, self.entity_name)
+                self._is_full_sync = full
+                self._last_synced_at = cp.get_last_synced_at(company_name, self.entity_name)
                 xml = self._build_xml(company_name, alter_id)
                 records = self._fetch_and_parse(xml)
                 # AlterID filtering is done here, not in TDL: custom variables
@@ -58,7 +64,9 @@ class BaseSyncService[T](ABC):
                     repo = self._make_repo(session)
                     count = repo.upsert_batch(company_name, records)
                     max_id = max((getattr(r, "alter_id", 0) for r in records), default=0)
-                    if max_id > alter_id:
+                    if max_id > alter_id or full:
+                        # Always persist after a full sync so last_synced_at is recorded
+                        # even when alter_id == 0 (e.g. Tally returns 0 for vouchers).
                         cp.save_alter_id(company_name, self.entity_name, max_id)
                 cp.finish_run(run_id, status="success", records_synced=count)
                 logger.debug(

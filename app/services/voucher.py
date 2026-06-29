@@ -14,20 +14,15 @@ from app.repositories.postgres.voucher import VoucherRepository
 from app.services.base import BaseSyncService
 from app.sync.streaming import IteratorIO
 
-
-def _financial_year_start() -> str:
-    """Return the start of the current Indian financial year as YYYYMMDD."""
-    today = datetime.date.today()
-    year = today.year if today.month >= 4 else today.year - 1
-    return f"{year}0401"
+_EPOCH = "19000101"  # earlier than any Tally company data
 
 
 class VoucherSyncService(BaseSyncService[VoucherRecord]):
     """Syncs vouchers (sales, purchase, payments, receipts, journals).
 
     Vouchers are the largest dataset — uses streaming HTTP to avoid buffering
-    the full response in memory.  The date window defaults to the current
-    financial year; pass from_date to override.
+    the full response in memory.  Fetches all dates by default; pass from_date
+    to restrict (e.g. for backfill testing).
     """
 
     entity_name = "voucher"
@@ -40,7 +35,7 @@ class VoucherSyncService(BaseSyncService[VoucherRecord]):
 
     def _build_xml(self, company_name: str, alter_id: int) -> str:
         today = datetime.date.today().strftime("%Y%m%d")
-        self._sync_from_date = self._from_date or _financial_year_start()
+        self._sync_from_date = self._from_date or _EPOCH
         self._sync_to_date = today
         return self._template.vouchers(
             company=company_name,
