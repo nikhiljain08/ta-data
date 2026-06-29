@@ -20,7 +20,6 @@ from app.parser.base import (
     text_list,
 )
 
-
 # ── Helpers to build test elements ────────────────────────────────────────────
 
 _SIMPLE_XML = b"""

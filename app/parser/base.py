@@ -6,6 +6,8 @@ Design
 * It yields one completed lxml element per Tally entity and then clears that
   element plus its preceding siblings so memory stays O(1) regardless of how
   many records the response contains.
+* iter_collection_with_raw() is the fidelity variant — yields (element, bytes)
+  pairs so callers can archive the verbatim Tally XML alongside parsed fields.
 * Entity parsers receive bytes or a file-like stream; both paths go through the
   same code.
 
@@ -22,7 +24,7 @@ import datetime
 import io
 from collections.abc import Iterator
 from decimal import Decimal, InvalidOperation
-from typing import IO
+from typing import IO, Any
 
 import lxml.etree as etree
 
@@ -33,20 +35,26 @@ type XmlSource = bytes | IO[bytes]
 _DATE_FORMATS = ("%d-%b-%y", "%d-%b-%Y", "%d-%m-%Y", "%Y-%m-%d")
 
 
+def _to_stream(source: XmlSource) -> IO[bytes]:
+    """Normalise *source* to a seekable byte stream lxml can parse."""
+    if isinstance(source, bytes):
+        try:
+            source.decode("utf-8")
+        except UnicodeDecodeError:
+            # TallyPrime sometimes embeds Windows-1252 bytes (e.g. ® = 0xAE) in
+            # XML declared as UTF-8.  Re-encode so lxml can parse it cleanly.
+            source = source.decode("cp1252").encode("utf-8")
+        return io.BytesIO(source)
+    return source
+
+
 def iter_collection(source: XmlSource, tag: str) -> Iterator[etree._Element]:
     """Stream-parse *source*, yielding each completed element whose tag matches.
 
     Clears each yielded element (and preceding siblings) after the caller
     finishes with it, keeping RSS bounded for large exports.
     """
-    if isinstance(source, bytes):
-        # TallyPrime sometimes embeds Windows-1252 bytes (e.g. ® = 0xAE) in XML
-        # that is declared as UTF-8.  Detect and re-encode so lxml can parse it.
-        try:
-            source.decode("utf-8")
-        except UnicodeDecodeError:
-            source = source.decode("cp1252").encode("utf-8")
-    stream: IO[bytes] = io.BytesIO(source) if isinstance(source, bytes) else source
+    stream = _to_stream(source)
     context = etree.iterparse(stream, events=("end",), tag=tag, recover=True)
     for _, elem in context:
         yield elem
@@ -54,6 +62,42 @@ def iter_collection(source: XmlSource, tag: str) -> Iterator[etree._Element]:
         elem.clear()
         while elem.getprevious() is not None:
             del elem.getparent()[0]  # type: ignore[index]
+
+
+def iter_collection_with_raw(source: XmlSource, tag: str) -> Iterator[tuple[etree._Element, bytes]]:
+    """Like *iter_collection* but also yields raw XML bytes for each element.
+
+    The bytes are captured via ``lxml.etree.tostring()`` before the element is
+    cleared, so callers can archive the original Tally XML verbatim.  Used by
+    the fidelity pipeline to populate tally_raw_archive and tally_entity_versions.
+    """
+    stream = _to_stream(source)
+    context = etree.iterparse(stream, events=("end",), tag=tag, recover=True)
+    for _, elem in context:
+        raw = etree.tostring(elem, encoding="unicode").encode("utf-8")
+        yield elem, raw
+        elem.clear()
+        while elem.getprevious() is not None:
+            del elem.getparent()[0]  # type: ignore[index]
+
+
+def extract_unknown_fields(elem: etree._Element, known_tags: frozenset[str]) -> dict[str, Any]:
+    """Return a mapping of child tags NOT in *known_tags* to their content.
+
+    Nested unknown sub-elements are serialised to XML strings so nothing is
+    lost.  This dict is stored as JSONB in the raw archive so future parser
+    versions can extract newly required fields from historical XML without
+    reconnecting to Tally.
+    """
+    result: dict[str, Any] = {}
+    for child in elem:
+        if child.tag in known_tags:
+            continue
+        if len(child):
+            result[child.tag] = etree.tostring(child, encoding="unicode")
+        else:
+            result[child.tag] = (child.text or "").strip()
+    return result
 
 
 # ── Field extractors ──────────────────────────────────────────────────────────

@@ -49,7 +49,11 @@ class TestCompanySyncService:
             count = svc.sync("Acme")
 
         assert count == 0
-        mock_cp.finish_run.assert_called_once_with(1, status="success", records_synced=0)
+        call_kwargs = mock_cp.finish_run.call_args
+        assert call_kwargs is not None
+        assert call_kwargs.args[0] == 1
+        assert call_kwargs.kwargs.get("status") == "success"
+        assert call_kwargs.kwargs.get("records_synced") == 0
 
 
 class TestLedgerGroupSyncService:

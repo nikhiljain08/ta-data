@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.models.domain.company import CompanyRecord
 from app.parser.base import XmlSource
-from app.parser.company import parse_companies
+from app.parser.company import parse_companies, parse_companies_with_raw
 from app.repositories.base import BaseRepository
 from app.repositories.postgres.company import CompanyRepository
 from app.services.base import BaseSyncService
@@ -26,6 +27,11 @@ class CompanySyncService(BaseSyncService[CompanyRecord]):
 
     def _parse(self, source: XmlSource) -> Iterator[CompanyRecord]:
         return parse_companies(source)
+
+    def _parse_with_raw(
+        self, source: XmlSource
+    ) -> Iterator[tuple[CompanyRecord, bytes, dict[str, Any]]]:
+        return parse_companies_with_raw(source)
 
     def _make_repo(self, session: Session) -> BaseRepository[CompanyRecord]:
         return CompanyRepository(session)

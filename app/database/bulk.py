@@ -22,6 +22,10 @@ from sqlalchemy.orm import Session
 
 from app.models.db.base import Base
 
+# PostgreSQL hard limit is 65,535 parameters per query.
+# 500 rows x up to 130 columns stays well within that ceiling for all our models.
+_CHUNK_SIZE = 500
+
 
 def bulk_upsert(
     session: Session,
@@ -34,18 +38,23 @@ def bulk_upsert(
     """Upsert *rows* into *model*'s table.
 
     Empty batch is a no-op; callers do not need to guard against it.
+    Large batches are automatically split into chunks of _CHUNK_SIZE rows to
+    stay under PostgreSQL's 65,535-parameter-per-query limit.
     Returns the number of rows processed (inserted or updated).
     """
     if not rows:
         return 0
 
-    stmt = insert(model).values(list(rows))  # type: ignore[arg-type]
-    update_dict = {col: getattr(stmt.excluded, col) for col in update_columns}
-    stmt = stmt.on_conflict_do_update(
-        index_elements=conflict_columns,
-        set_=update_dict,
-    )
-    result = session.execute(stmt)
-    # rowcount is -1 for INSERT … ON CONFLICT when no row is returned;
-    # return len(rows) as the number of records submitted instead.
-    return result.rowcount if result.rowcount >= 0 else len(rows)
+    total = 0
+    row_list = list(rows)
+    for i in range(0, len(row_list), _CHUNK_SIZE):
+        chunk = row_list[i : i + _CHUNK_SIZE]
+        stmt = insert(model).values(chunk)  # type: ignore[arg-type]
+        update_dict = {col: getattr(stmt.excluded, col) for col in update_columns}
+        stmt = stmt.on_conflict_do_update(
+            index_elements=conflict_columns,
+            set_=update_dict,
+        )
+        result = session.execute(stmt)
+        total += result.rowcount if result.rowcount >= 0 else len(chunk)
+    return total

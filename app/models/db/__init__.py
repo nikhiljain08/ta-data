@@ -4,6 +4,7 @@ from app.models.db.base import Base
 from app.models.db.company import CompanyModel
 from app.models.db.inventory import GodownModel, StockGroupModel, StockItemModel, UnitModel
 from app.models.db.ledger import LedgerGroupModel, LedgerModel, VoucherTypeModel
+from app.models.db.raw_archive import TallyEntityVersionModel, TallyRawArchiveModel
 from app.models.db.sync_state import SyncCheckpointModel, SyncRunModel
 from app.models.db.voucher import (
     GstDetailModel,
@@ -23,6 +24,8 @@ __all__ = [
     "StockItemModel",
     "SyncCheckpointModel",
     "SyncRunModel",
+    "TallyEntityVersionModel",
+    "TallyRawArchiveModel",
     "UnitModel",
     "VoucherInventoryEntryModel",
     "VoucherLedgerEntryModel",

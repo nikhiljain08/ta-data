@@ -72,9 +72,7 @@ class PurchaseOrderRepository(BaseRepository[PurchaseOrderRecord]):
 
         # Delete stale items then insert fresh ones.
         self._session.execute(
-            delete(PurchaseOrderItemModel).where(
-                PurchaseOrderItemModel.po_id.in_(id_map.values())
-            )
+            delete(PurchaseOrderItemModel).where(PurchaseOrderItemModel.po_id.in_(id_map.values()))
         )
 
         item_rows: list[dict[str, object]] = []

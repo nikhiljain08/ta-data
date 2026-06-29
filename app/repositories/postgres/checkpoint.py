@@ -73,6 +73,11 @@ class CheckpointRepository:
         *,
         status: str,
         records_synced: int = 0,
+        records_inserted: int = 0,
+        records_updated: int = 0,
+        records_skipped: int = 0,
+        parser_version: str = "1.0",
+        schema_version: str = "",
         error_message: str | None = None,
     ) -> None:
         """Mark a sync run as finished."""
@@ -82,4 +87,9 @@ class CheckpointRepository:
         run.finished_at = datetime.datetime.now(tz=datetime.UTC)
         run.status = status
         run.records_synced = records_synced
+        run.records_inserted = records_inserted
+        run.records_updated = records_updated
+        run.records_skipped = records_skipped
+        run.parser_version = parser_version
+        run.schema_version = schema_version
         run.error_message = error_message

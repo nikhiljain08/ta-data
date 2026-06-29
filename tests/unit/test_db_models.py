@@ -25,6 +25,7 @@ from app.models.db import (
     VoucherModel,
     VoucherTypeModel,
 )
+from app.models.db.raw_archive import TallyEntityVersionModel, TallyRawArchiveModel
 
 
 def _col_names(model: type) -> set[str]:
@@ -185,3 +186,72 @@ class TestVoucherColumns:
 
     def test_has_gst_details_relationship(self) -> None:
         assert hasattr(VoucherModel, "gst_details")
+
+
+class TestSyncRunFidelityColumns:
+    def test_fidelity_columns_exist(self) -> None:
+        cols = _col_names(SyncRunModel)
+        for col in (
+            "records_inserted",
+            "records_updated",
+            "records_skipped",
+            "parser_version",
+            "schema_version",
+        ):
+            assert col in cols, f"Missing SyncRunModel column: {col}"
+
+
+class TestRawArchiveModel:
+    def test_table_name(self) -> None:
+        assert TallyRawArchiveModel.__tablename__ == "tally_raw_archive"
+
+    def test_required_columns(self) -> None:
+        cols = _col_names(TallyRawArchiveModel)
+        for col in (
+            "id",
+            "entity_type",
+            "company_name",
+            "entity_name",
+            "guid",
+            "alter_id",
+            "xml",
+            "xml_hash",
+            "unknown_fields",
+            "parser_version",
+            "sync_run_id",
+            "created_at",
+            "updated_at",
+        ):
+            assert col in cols, f"Missing TallyRawArchiveModel column: {col}"
+
+    def test_unique_constraint(self) -> None:
+        assert "uq_raw_archive_type_company_guid" in _unique_constraints(TallyRawArchiveModel)
+
+
+class TestEntityVersionModel:
+    def test_table_name(self) -> None:
+        assert TallyEntityVersionModel.__tablename__ == "tally_entity_versions"
+
+    def test_required_columns(self) -> None:
+        cols = _col_names(TallyEntityVersionModel)
+        for col in (
+            "id",
+            "entity_type",
+            "company_name",
+            "entity_name",
+            "guid",
+            "alter_id",
+            "xml_hash",
+            "xml",
+            "normalized_json",
+            "unknown_fields",
+            "parser_version",
+            "sync_run_id",
+            "created_at",
+        ):
+            assert col in cols, f"Missing TallyEntityVersionModel column: {col}"
+
+    def test_unique_constraint(self) -> None:
+        assert "uq_entity_versions_type_company_guid_hash" in _unique_constraints(
+            TallyEntityVersionModel
+        )

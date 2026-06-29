@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 import datetime
+import hashlib
 import io
 from collections.abc import Iterator
+from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.models.domain.voucher import VoucherRecord
 from app.parser.base import XmlSource
-from app.parser.voucher import parse_vouchers
+from app.parser.voucher import parse_vouchers, parse_vouchers_with_raw
 from app.repositories.base import BaseRepository
 from app.repositories.postgres.voucher import VoucherRepository
-from app.services.base import BaseSyncService
+from app.services.base import BaseSyncService, _FidelityRow
 from app.sync.streaming import IteratorIO
 
 _EPOCH = "19000101"  # earlier than any Tally company data
@@ -46,8 +48,22 @@ class VoucherSyncService(BaseSyncService[VoucherRecord]):
         source: io.RawIOBase = IteratorIO(chunks)
         return list(parse_vouchers(io.BufferedReader(source)))
 
+    def _fetch_and_parse_with_raw(self, xml: str) -> list[_FidelityRow[VoucherRecord]]:
+        chunks = self._client.stream_request(xml)
+        source: io.RawIOBase = IteratorIO(chunks)
+        result: list[_FidelityRow[VoucherRecord]] = []
+        for record, raw, unknown in parse_vouchers_with_raw(io.BufferedReader(source)):
+            xml_hash = hashlib.sha256(raw).hexdigest()
+            result.append((record, raw, xml_hash, unknown))
+        return result
+
     def _parse(self, source: XmlSource) -> Iterator[VoucherRecord]:
         return parse_vouchers(source)
+
+    def _parse_with_raw(
+        self, source: XmlSource
+    ) -> Iterator[tuple[VoucherRecord, bytes, dict[str, Any]]]:
+        return parse_vouchers_with_raw(source)
 
     def _make_repo(self, session: Session) -> BaseRepository[VoucherRecord]:
         return VoucherRepository(session)

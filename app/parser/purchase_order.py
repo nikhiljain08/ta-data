@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import Any
 
 import lxml.etree as etree
 
@@ -8,11 +9,34 @@ from app.models.domain.purchase_order import PurchaseOrderItemRecord, PurchaseOr
 from app.parser import base
 from app.parser.base import XmlSource
 
+_KNOWN_TAGS: frozenset[str] = frozenset(
+    {
+        "VOUCHERNUMBER",
+        "DATE",
+        "PARTYLEDGERNAME",
+        "NARRATION",
+        "ORDERDUEDATE",
+        "ISCANCELLED",
+        "ISOPTIONAL",
+        "GUID",
+        "ALTERID",
+        "ALLINVENTORYENTRIES.LIST",
+    }
+)
+
 
 def parse_purchase_orders(source: XmlSource) -> Iterator[PurchaseOrderRecord]:
     """Yield one PurchaseOrderRecord per <VOUCHER> element in the XML response."""
     for elem in base.iter_collection(source, "VOUCHER"):
         yield _build_record(elem)
+
+
+def parse_purchase_orders_with_raw(
+    source: XmlSource,
+) -> Iterator[tuple[PurchaseOrderRecord, bytes, dict[str, Any]]]:
+    """Yield (record, raw_xml_bytes, unknown_fields) for each <VOUCHER> element."""
+    for elem, raw in base.iter_collection_with_raw(source, "VOUCHER"):
+        yield _build_record(elem), raw, base.extract_unknown_fields(elem, _KNOWN_TAGS)
 
 
 def _build_record(elem: etree._Element) -> PurchaseOrderRecord:
