@@ -1,0 +1,55 @@
+name: Build Windows Executable
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+          pip install pyinstaller
+
+      - name: Build executable
+        run: pyinstaller tallysync.spec
+
+      - name: Zip dist folder
+        run: Compress-Archive -Path dist\tallysync\* -DestinationPath tallysync-windows.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tallysync-windows-${{ github.run_number }}
+          path: tallysync-windows.zip
+          retention-days: 90
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "Build #${{ github.run_number }}"
+          body: |
+            Automated build — commit `${{ github.sha }}`
+
+            **Install:**
+            1. Download `tallysync-windows.zip`
+            2. Extract to `C:\TallySync\`
+            3. Edit `config.yaml` with your database URL and Tally company name
+            4. Run `install.ps1` as Administrator to register the Windows Service
+          files: tallysync-windows.zip
