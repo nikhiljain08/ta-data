@@ -65,6 +65,21 @@ class TemplateEngine:
     def godowns(self, *, company: str, alter_id: int = 0) -> str:
         return _sdk.godown_request(company=_require_company(company), alter_id=alter_id)
 
+    def purchase_orders(
+        self,
+        *,
+        company: str,
+        from_date: str,
+        to_date: str,
+        alter_id: int = 0,
+    ) -> str:
+        return _sdk.purchase_order_request(
+            company=_require_company(company),
+            from_date=_require_date(from_date, "from_date"),
+            to_date=_require_date(to_date, "to_date"),
+            alter_id=alter_id,
+        )
+
     def cost_centres(self, *, company: str, alter_id: int = 0) -> str:
         raise NotImplementedError("cost_centres export not yet implemented")
 

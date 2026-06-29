@@ -38,6 +38,7 @@ class Agent:
             GodownSyncService,
             LedgerGroupSyncService,
             LedgerSyncService,
+            PurchaseOrderSyncService,
             StockGroupSyncService,
             StockItemSyncService,
             UnitSyncService,
@@ -70,6 +71,7 @@ class Agent:
                     **svc_kwargs,
                     from_date=self._settings.sync.voucher_from_date,
                 ),
+                "purchase_order": PurchaseOrderSyncService(**svc_kwargs),
             }
             sync_engine = SyncEngine(services, self._settings.sync.entity_order)
 

@@ -11,6 +11,7 @@ from app.services.masters import (
     UnitSyncService,
     VoucherTypeSyncService,
 )
+from app.services.purchase_order import PurchaseOrderSyncService
 from app.services.voucher import VoucherSyncService
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     "GodownSyncService",
     "LedgerGroupSyncService",
     "LedgerSyncService",
+    "PurchaseOrderSyncService",
     "StockGroupSyncService",
     "StockItemSyncService",
     "UnitSyncService",

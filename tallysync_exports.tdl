@@ -95,6 +95,107 @@
     Event : Delete Unit       : TSSyncUnit
 
 ;; =========================================================================
+;; PURCHASE ORDERS
+;; Type: Voucher filtered to "Purchase Order" voucher type.
+;; Stores intended purchases before a Purchase Bill is created.
+;; =========================================================================
+
+[Report : TS_PO_REPORT]
+    Form : TS_PO_FORM
+
+[Form : TS_PO_FORM]
+    Parts   : TS_PO_PART
+    XML Tag : "TS_PO_LIST"
+
+[Part : TS_PO_PART]
+    Lines    : TS_PO_LINE
+    Repeat   : TS_PO_LINE : TS_PO_COLL
+    Scrolled : Vertical
+
+[Line : TS_PO_LINE]
+    Fields  : TS_PO_F0, TS_PO_F1, TS_PO_F2, TS_PO_F3, TS_PO_F4, TS_PO_F5, TS_PO_F6, TS_PO_F7, TS_PO_F8
+    Explode : TS_PO_ITEMS
+    XML Tag : "VOUCHER"
+
+[Field : TS_PO_F0]
+    Set as  : $VoucherNumber
+    XML Tag : "VOUCHERNUMBER"
+
+[Field : TS_PO_F1]
+    Set as  : $Date
+    XML Tag : "DATE"
+
+[Field : TS_PO_F2]
+    Set as  : $PartyLedgerName
+    XML Tag : "PARTYLEDGERNAME"
+
+[Field : TS_PO_F3]
+    Set as  : $Narration
+    XML Tag : "NARRATION"
+
+[Field : TS_PO_F4]
+    Set as  : $OrderDueDate
+    XML Tag : "ORDERDUEDATE"
+
+[Field : TS_PO_F5]
+    Set as  : $$YesNo:$IsCancelled
+    XML Tag : "ISCANCELLED"
+
+[Field : TS_PO_F6]
+    Set as  : $$YesNo:$IsOptional
+    XML Tag : "ISOPTIONAL"
+
+[Field : TS_PO_F7]
+    Set as  : $GUID
+    XML Tag : "GUID"
+
+[Field : TS_PO_F8]
+    Set as  : $AlterID
+    XML Tag : "ALTERID"
+
+[Collection : TS_PO_COLL]
+    Type   : Voucher
+    Fetch  : VoucherNumber, Date, PartyLedgerName, Narration, OrderDueDate, IsCancelled, IsOptional, GUID, AlterID, AllInventoryEntries.*
+    Filter : TS_IsPO
+
+[System : Formula]
+    TS_IsPO : $VoucherTypeName = "Purchase Order"
+
+;; ── Purchase Order inventory items sub-part ──────────────────────────────
+
+[Part : TS_PO_ITEMS]
+    Lines  : TS_PO_ITEM_LINE
+    Repeat : TS_PO_ITEM_LINE : AllinventoryEntries
+
+[Line : TS_PO_ITEM_LINE]
+    Fields  : TS_PO_IT_F0, TS_PO_IT_F1, TS_PO_IT_F2, TS_PO_IT_F3, TS_PO_IT_F4, TS_PO_IT_F5
+    XML Tag : "ALLINVENTORYENTRIES.LIST"
+
+[Field : TS_PO_IT_F0]
+    Set as  : $StockItemName
+    XML Tag : "STOCKITEMNAME"
+
+[Field : TS_PO_IT_F1]
+    Set as  : $ActualQty
+    XML Tag : "ACTUALQTY"
+
+[Field : TS_PO_IT_F2]
+    Set as  : $BilledQty
+    XML Tag : "BILLEDQTY"
+
+[Field : TS_PO_IT_F3]
+    Set as  : $Rate
+    XML Tag : "RATE"
+
+[Field : TS_PO_IT_F4]
+    Set as  : $Amount
+    XML Tag : "AMOUNT"
+
+[Field : TS_PO_IT_F5]
+    Set as  : $GodownName
+    XML Tag : "GODOWNNAME"
+
+;; =========================================================================
 ;; COMPANY
 ;; Type: Company (gateway-scoped — do not set SVCURRENTCOMPANY)
 ;; =========================================================================

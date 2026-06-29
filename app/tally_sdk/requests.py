@@ -71,3 +71,19 @@ def voucher_request(
         from_date=from_date,
         to_date=to_date,
     )
+
+
+def purchase_order_request(
+    *,
+    company: str,
+    from_date: str,
+    to_date: str,
+    alter_id: int = 0,
+) -> str:
+    """Export Purchase Order vouchers bounded by the date range."""
+    return build_export(
+        key="PO",
+        company=company,
+        from_date=from_date,
+        to_date=to_date,
+    )
