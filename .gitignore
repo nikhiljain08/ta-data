@@ -33,8 +33,9 @@ secrets/
 logs/
 *.log
 
-# PyInstaller
+# PyInstaller (keep our checked-in build spec, ignore any others)
 *.spec
+!tallysync.spec
 dist-exe/
 
 # Windows
