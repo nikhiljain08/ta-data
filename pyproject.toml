@@ -29,8 +29,8 @@ dependencies = [
     # Internal control API
     "fastapi>=0.111",
     "uvicorn[standard]>=0.30",
-    # Windows Service
-    "pywin32>=306",
+    # Windows Service (Windows-only — service install/start/stop commands)
+    "pywin32>=306; sys_platform == 'win32'",
     # Secrets management
     "keyring>=25.2",
     # CLI tooling
