@@ -214,6 +214,7 @@
 
 [Line : TS_CMP_LINE]
     Fields  : TS_CMP_F0, TS_CMP_F1, TS_CMP_F2, TS_CMP_F3, TS_CMP_F4, TS_CMP_F5, TS_CMP_F6, TS_CMP_F7, TS_CMP_F8
+    Explode : TS_CMP_SP0
     XML Tag : "COMPANY"
 
 [Field : TS_CMP_F0]
@@ -255,6 +256,20 @@
 ;; Company collection is gateway-level — no filter needed
 [Collection : TS_CMP_COLL]
     Type : Company
+
+;; Flat $GSTIN on Company returns nothing; the value (when entered) lives in
+;; the GSTDetails sub-collection — confirmed by probe P_C2.
+[Part : TS_CMP_SP0]
+    Lines  : TS_CMP_SP0_LINE
+    Repeat : TS_CMP_SP0_LINE : GSTDetails
+
+[Line : TS_CMP_SP0_LINE]
+    Fields  : TS_CMP_SP0_F0
+    XML Tag : "GSTDETAILS.LIST"
+
+[Field : TS_CMP_SP0_F0]
+    Set as  : $GSTIN
+    XML Tag : "GSTIN"
 
 ;; =========================================================================
 ;; LEDGER GROUPS (Group masters)
@@ -324,6 +339,8 @@
 
 [Line : TS_LED_LINE]
     Fields  : TS_LED_F0, TS_LED_F1, TS_LED_F2, TS_LED_F3, TS_LED_F4, TS_LED_F5, TS_LED_F6, TS_LED_F7, TS_LED_F8, TS_LED_F9, TS_LED_F10, TS_LED_F11, TS_LED_F12, TS_LED_F13, TS_LED_F14
+    Explode : TS_LED_SP0
+    Explode : TS_LED_SP1
     XML Tag : "LEDGER"
 
 [Field : TS_LED_F0]
@@ -388,6 +405,40 @@
 
 [Collection : TS_LED_COLL]
     Type   : Ledger
+
+;; $GSTIN returns nothing as a flat field on Ledger; TallyPrime 7 stores GST
+;; registration details in the LedGSTRegDetails sub-collection.  One entry per
+;; registration period — typically one per ledger.
+[Part : TS_LED_SP0]
+    Lines  : TS_LED_SP0_LINE
+    Repeat : TS_LED_SP0_LINE : LedGSTRegDetails
+
+[Line : TS_LED_SP0_LINE]
+    Fields  : TS_LED_SP0_F0
+    XML Tag : "LEDGSTREGDETAILS.LIST"
+
+[Field : TS_LED_SP0_F0]
+    Set as  : $GSTIN
+    XML Tag : "GSTIN"
+
+;; $LedgerEmail and flat ADDRESS.LIST return nothing; email and address live in
+;; the LedMailingDetails sub-collection (one entry per mailing address on the ledger).
+[Part : TS_LED_SP1]
+    Lines  : TS_LED_SP1_LINE
+    Repeat : TS_LED_SP1_LINE : LedMailingDetails
+
+[Line : TS_LED_SP1_LINE]
+    Fields  : TS_LED_SP1_F0, TS_LED_SP1_F1
+    XML Tag : "LEDMAILINGDETAILS.LIST"
+
+[Field : TS_LED_SP1_F0]
+    Set as  : $Email
+    XML Tag : "EMAIL"
+
+[Field : TS_LED_SP1_F1]
+    Set as  : $Address
+    XML Tag : "ADDRESS"
+
 ;; =========================================================================
 ;; UNITS OF MEASURE
 ;; =========================================================================
@@ -582,6 +633,7 @@
 
 [Line : TS_SITM_LINE]
     Fields  : TS_SITM_F0, TS_SITM_F1, TS_SITM_F2, TS_SITM_F3, TS_SITM_F4, TS_SITM_F5, TS_SITM_F6, TS_SITM_F7, TS_SITM_F8, TS_SITM_F9, TS_SITM_F10, TS_SITM_F11, TS_SITM_F12, TS_SITM_F13, TS_SITM_F14, TS_SITM_F15
+    Explode : TS_SITM_SP0
     XML Tag : "STOCKITEM"
 
 [Field : TS_SITM_F0]
@@ -650,6 +702,21 @@
 
 [Collection : TS_SITM_COLL]
     Type   : StockItem
+
+;; Flat $HSNCode on StockItem returns nothing; the value lives in GSTDetails
+;; (confirmed by probe — same structural pattern as LedGSTRegDetails on Ledger).
+[Part : TS_SITM_SP0]
+    Lines  : TS_SITM_SP0_LINE
+    Repeat : TS_SITM_SP0_LINE : GSTDetails
+
+[Line : TS_SITM_SP0_LINE]
+    Fields  : TS_SITM_SP0_F0
+    XML Tag : "GSTDETAILS.LIST"
+
+[Field : TS_SITM_SP0_F0]
+    Set as  : $HSNCode
+    XML Tag : "HSNCODE"
+
 ;; =========================================================================
 ;; VOUCHERS  (with ledger entries + inventory entries sub-parts)
 ;; =========================================================================
@@ -715,9 +782,12 @@
 ;; Type : Voucher implicitly uses SVFROMDATE / SVTODATE sent via HTTP
 ;; STATICVARIABLES.  Python sends 19000101 – today so Tally returns every
 ;; voucher ever entered in the company.
+;; Fetch is required for PartyLedgerName and Narration — without it TallyPrime
+;; returns empty strings for both, even though the data exists on disk.
 
 [Collection : TS_VOC_COLL]
-    Type   : Voucher
+    Type  : Voucher
+    Fetch : VoucherNumber, Date, VoucherTypeName, PartyLedgerName, Narration, IsInvoice, IsCancelled, IsOptional, GUID, AlterID
 
 ;; ── Ledger Entries sub-part ──────────────────────────────────────────────
 
@@ -774,3 +844,534 @@
 [Field : TS_VOC_SP1_F5]
     Set as  : $GodownName
     XML Tag : "GODOWNNAME"
+
+;; =========================================================================
+;; DIAGNOSTIC PROBES — remove after field names are confirmed
+;; =========================================================================
+
+;; ── P_V1: Voucher — compare flat field alternatives for party name / narration ──
+
+[Report : TS_PV1_REPORT]
+    Form : TS_PV1_FORM
+
+[Form : TS_PV1_FORM]
+    Parts   : TS_PV1_PART
+    XML Tag : "TS_PV1_LIST"
+
+[Part : TS_PV1_PART]
+    Lines    : TS_PV1_LINE
+    Repeat   : TS_PV1_LINE : TS_PV1_COLL
+    Scrolled : Vertical
+
+[Line : TS_PV1_LINE]
+    Fields  : TS_PV1_F0, TS_PV1_F1, TS_PV1_F2, TS_PV1_F3, TS_PV1_F4, TS_PV1_F5
+    XML Tag : "VOUCHER"
+
+[Field : TS_PV1_F0]
+    Set as  : $VoucherNumber
+    XML Tag : "VOUCHERNUMBER"
+
+[Field : TS_PV1_F1]
+    Set as  : $VoucherTypeName
+    XML Tag : "VOUCHERTYPENAME"
+
+[Field : TS_PV1_F2]
+    Set as  : $PartyLedgerName
+    XML Tag : "PARTYLEDGERNAME_ORIG"
+
+[Field : TS_PV1_F3]
+    Set as  : $BasicPartyName
+    XML Tag : "BASICPARTYNAME"
+
+[Field : TS_PV1_F4]
+    Set as  : $Narration
+    XML Tag : "NARRATION_ORIG"
+
+[Field : TS_PV1_F5]
+    Set as  : $$RemoveEnter:$Narration
+    XML Tag : "NARRATION_REMOVEENTER"
+
+[Collection : TS_PV1_COLL]
+    Type : Voucher
+
+;; ── P_V2: Voucher — sub-part iterating PartiesDetails for party ledger name ──
+
+[Report : TS_PV2_REPORT]
+    Form : TS_PV2_FORM
+
+[Form : TS_PV2_FORM]
+    Parts   : TS_PV2_PART
+    XML Tag : "TS_PV2_LIST"
+
+[Part : TS_PV2_PART]
+    Lines    : TS_PV2_LINE
+    Repeat   : TS_PV2_LINE : TS_PV2_COLL
+    Scrolled : Vertical
+
+[Line : TS_PV2_LINE]
+    Fields  : TS_PV2_F0, TS_PV2_F1
+    Explode : TS_PV2_SP
+    XML Tag : "VOUCHER"
+
+[Field : TS_PV2_F0]
+    Set as  : $VoucherNumber
+    XML Tag : "VOUCHERNUMBER"
+
+[Field : TS_PV2_F1]
+    Set as  : $VoucherTypeName
+    XML Tag : "VOUCHERTYPENAME"
+
+[Part : TS_PV2_SP]
+    Lines  : TS_PV2_SL
+    Repeat : TS_PV2_SL : AllLedgerEntries
+
+[Line : TS_PV2_SL]
+    Fields  : TS_PV2_SF0
+    XML Tag : "ALLLEDGERENTRIES.LIST"
+
+[Field : TS_PV2_SF0]
+    Set as  : $LedgerName
+    XML Tag : "LEDGERNAME"
+
+[Collection : TS_PV2_COLL]
+    Type : Voucher
+
+;; ── P_L1: Ledger — flat field name alternatives for GSTIN and email ──
+
+[Report : TS_PL1_REPORT]
+    Form : TS_PL1_FORM
+
+[Form : TS_PL1_FORM]
+    Parts   : TS_PL1_PART
+    XML Tag : "TS_PL1_LIST"
+
+[Part : TS_PL1_PART]
+    Lines    : TS_PL1_LINE
+    Repeat   : TS_PL1_LINE : TS_PL1_COLL
+    Scrolled : Vertical
+
+[Line : TS_PL1_LINE]
+    Fields  : TS_PL1_F0, TS_PL1_F1, TS_PL1_F2, TS_PL1_F3, TS_PL1_F4, TS_PL1_F5
+    XML Tag : "LEDGER"
+
+[Field : TS_PL1_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_PL1_F1]
+    Set as  : $GSTRegistrationType
+    XML Tag : "GSTREGISTRATIONTYPE"
+
+[Field : TS_PL1_F2]
+    Set as  : $GSTIN
+    XML Tag : "GSTIN_ORIG"
+
+[Field : TS_PL1_F3]
+    Set as  : $GSTRegistrationNumber
+    XML Tag : "GSTREGISTRATIONNUMBER"
+
+[Field : TS_PL1_F4]
+    Set as  : $LedgerEmail
+    XML Tag : "LEDGEREMAIL_ORIG"
+
+[Field : TS_PL1_F5]
+    Set as  : $Email
+    XML Tag : "EMAIL_ALT"
+
+[Collection : TS_PL1_COLL]
+    Type   : Ledger
+    Filter : TS_PL1_FLTR
+
+[System : Formulae]
+    TS_PL1_FLTR : NOT $$IsEmpty:$GSTRegistrationType
+
+;; ── P_L2: Ledger — sub-part iterating LedGSTRegDetails for GSTIN ──
+
+[Report : TS_PL2_REPORT]
+    Form : TS_PL2_FORM
+
+[Form : TS_PL2_FORM]
+    Parts   : TS_PL2_PART
+    XML Tag : "TS_PL2_LIST"
+
+[Part : TS_PL2_PART]
+    Lines    : TS_PL2_LINE
+    Repeat   : TS_PL2_LINE : TS_PL2_COLL
+    Scrolled : Vertical
+
+[Line : TS_PL2_LINE]
+    Fields  : TS_PL2_F0, TS_PL2_F1
+    Explode : TS_PL2_SP
+    XML Tag : "LEDGER"
+
+[Field : TS_PL2_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_PL2_F1]
+    Set as  : $GSTRegistrationType
+    XML Tag : "GSTREGISTRATIONTYPE"
+
+[Part : TS_PL2_SP]
+    Lines  : TS_PL2_SL
+    Repeat : TS_PL2_SL : LedGSTRegDetails
+
+[Line : TS_PL2_SL]
+    Fields  : TS_PL2_SF0, TS_PL2_SF1, TS_PL2_SF2, TS_PL2_SF3
+    XML Tag : "LEDGSTREGDETAILS.LIST"
+
+[Field : TS_PL2_SF0]
+    Set as  : $GSTIN
+    XML Tag : "GSTIN"
+
+[Field : TS_PL2_SF1]
+    Set as  : $GSTRegistrationNumber
+    XML Tag : "GSTREGISTRATIONNUMBER"
+
+[Field : TS_PL2_SF2]
+    Set as  : $GST_TIN
+    XML Tag : "GST_TIN"
+
+[Field : TS_PL2_SF3]
+    Set as  : $ApplicableFrom
+    XML Tag : "APPLICABLEFROM"
+
+[Collection : TS_PL2_COLL]
+    Type   : Ledger
+    Filter : TS_PL1_FLTR
+
+;; ── P_L3: Ledger — sub-part iterating MailingDetails for email / address ──
+
+[Report : TS_PL3_REPORT]
+    Form : TS_PL3_FORM
+
+[Form : TS_PL3_FORM]
+    Parts   : TS_PL3_PART
+    XML Tag : "TS_PL3_LIST"
+
+[Part : TS_PL3_PART]
+    Lines    : TS_PL3_LINE
+    Repeat   : TS_PL3_LINE : TS_PL3_COLL
+    Scrolled : Vertical
+
+[Line : TS_PL3_LINE]
+    Fields  : TS_PL3_F0, TS_PL3_F1, TS_PL3_F2
+    Explode : TS_PL3_SP
+    XML Tag : "LEDGER"
+
+[Field : TS_PL3_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_PL3_F1]
+    Set as  : $LedgerEmail
+    XML Tag : "LEDGEREMAIL_FLAT"
+
+[Field : TS_PL3_F2]
+    Set as  : $LedgerMobile
+    XML Tag : "LEDGERMOBILE_FLAT"
+
+[Part : TS_PL3_SP]
+    Lines  : TS_PL3_SL
+    Repeat : TS_PL3_SL : LedMailingDetails
+
+[Line : TS_PL3_SL]
+    Fields  : TS_PL3_SF0, TS_PL3_SF1, TS_PL3_SF2
+    XML Tag : "LEDMAILINGDETAILS.LIST"
+
+[Field : TS_PL3_SF0]
+    Set as  : $Name
+    XML Tag : "MAILINGNAME"
+
+[Field : TS_PL3_SF1]
+    Set as  : $Email
+    XML Tag : "EMAIL"
+
+[Field : TS_PL3_SF2]
+    Set as  : $Address
+    XML Tag : "ADDRESS"
+
+[Collection : TS_PL3_COLL]
+    Type   : Ledger
+    Filter : TS_PL3_FLTR
+
+[System : Formulae]
+    TS_PL3_FLTR : NOT $$IsEmpty:$LedgerMobile
+
+;; ── P_SI1: StockItem — flat HSNCode vs GSTDetails sub-part ──
+
+[Report : TS_PSI1_REPORT]
+    Form : TS_PSI1_FORM
+
+[Form : TS_PSI1_FORM]
+    Parts   : TS_PSI1_PART
+    XML Tag : "TS_PSI1_LIST"
+
+[Part : TS_PSI1_PART]
+    Lines    : TS_PSI1_LINE
+    Repeat   : TS_PSI1_LINE : TS_PSI1_COLL
+    Scrolled : Vertical
+
+[Line : TS_PSI1_LINE]
+    Fields  : TS_PSI1_F0, TS_PSI1_F1, TS_PSI1_F2
+    Explode : TS_PSI1_SP
+    XML Tag : "STOCKITEM"
+
+[Field : TS_PSI1_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_PSI1_F1]
+    Set as  : $GSTApplicable
+    XML Tag : "GSTAPPLICABLE"
+
+[Field : TS_PSI1_F2]
+    Set as  : $HSNCode
+    XML Tag : "HSNCODE_FLAT"
+
+[Part : TS_PSI1_SP]
+    Lines  : TS_PSI1_SL
+    Repeat : TS_PSI1_SL : GSTDetails
+
+[Line : TS_PSI1_SL]
+    Fields  : TS_PSI1_SF0, TS_PSI1_SF1, TS_PSI1_SF2
+    XML Tag : "GSTDETAILS.LIST"
+
+[Field : TS_PSI1_SF0]
+    Set as  : $HSNCode
+    XML Tag : "HSNCODE"
+
+[Field : TS_PSI1_SF1]
+    Set as  : $GSTTypeOfSupply
+    XML Tag : "GSTTYPEOFSUPPLY"
+
+[Field : TS_PSI1_SF2]
+    Set as  : $ApplicableFrom
+    XML Tag : "APPLICABLEFROM"
+
+[Collection : TS_PSI1_COLL]
+    Type   : StockItem
+    Filter : TS_PSI1_FLTR
+
+[System : Formulae]
+    TS_PSI1_FLTR : $GSTApplicable = "Applicable"
+
+;; ── P_C1: Company — GSTIN field name alternatives ──
+
+[Report : TS_PC1_REPORT]
+    Form : TS_PC1_FORM
+
+[Form : TS_PC1_FORM]
+    Parts   : TS_PC1_PART
+    XML Tag : "TS_PC1_LIST"
+
+[Part : TS_PC1_PART]
+    Lines    : TS_PC1_LINE
+    Repeat   : TS_PC1_LINE : TS_PC1_COLL
+    Scrolled : Vertical
+
+[Line : TS_PC1_LINE]
+    Fields  : TS_PC1_F0, TS_PC1_F1, TS_PC1_F2, TS_PC1_F3
+    XML Tag : "COMPANY"
+
+[Field : TS_PC1_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_PC1_F1]
+    Set as  : $GSTIN
+    XML Tag : "GSTIN_ORIG"
+
+[Field : TS_PC1_F2]
+    Set as  : $GSTRegistrationNumber
+    XML Tag : "GSTREGISTRATIONNUMBER"
+
+[Field : TS_PC1_F3]
+    Set as  : $GSTNumber
+    XML Tag : "GSTNUMBER"
+
+[Collection : TS_PC1_COLL]
+    Type : Company
+
+;; ── P_V3: Voucher — Fetch-based access + $Party + $BasicNarration ──
+;; Hypothesis: PartyLedgerName and Narration may need Fetch to be loaded.
+;; Also tests $Party (alternative field name used in some TP7 versions).
+
+[Report : TS_PV3_REPORT]
+    Form : TS_PV3_FORM
+
+[Form : TS_PV3_FORM]
+    Parts   : TS_PV3_PART
+    XML Tag : "TS_PV3_LIST"
+
+[Part : TS_PV3_PART]
+    Lines    : TS_PV3_LINE
+    Repeat   : TS_PV3_LINE : TS_PV3_COLL
+    Scrolled : Vertical
+
+[Line : TS_PV3_LINE]
+    Fields  : TS_PV3_F0, TS_PV3_F1, TS_PV3_F2, TS_PV3_F3, TS_PV3_F4, TS_PV3_F5, TS_PV3_F6
+    XML Tag : "VOUCHER"
+
+[Field : TS_PV3_F0]
+    Set as  : $VoucherNumber
+    XML Tag : "VOUCHERNUMBER"
+
+[Field : TS_PV3_F1]
+    Set as  : $VoucherTypeName
+    XML Tag : "VOUCHERTYPENAME"
+
+;; Try flat alternatives:
+[Field : TS_PV3_F2]
+    Set as  : $Party
+    XML Tag : "PARTY"
+
+[Field : TS_PV3_F3]
+    Set as  : $BasicNarration
+    XML Tag : "BASICNARRATION"
+
+;; Try PartyLedgerName and Narration again but with Fetch on the collection:
+[Field : TS_PV3_F4]
+    Set as  : $PartyLedgerName
+    XML Tag : "PARTYLEDGERNAME_FETCH"
+
+[Field : TS_PV3_F5]
+    Set as  : $Narration
+    XML Tag : "NARRATION_FETCH"
+
+;; Confirm $IsInvoice still works (sanity check that Fetch doesn't break things):
+[Field : TS_PV3_F6]
+    Set as  : $$YesNo:$IsInvoice
+    XML Tag : "ISINVOICE"
+
+;; Fetch instructs TallyPrime to pre-load these fields from disk.
+;; Without Fetch, some fields return empty even when the data exists.
+[Collection : TS_PV3_COLL]
+    Type  : Voucher
+    Fetch : VoucherNumber, Date, VoucherTypeName, PartyLedgerName, Narration, Party, GUID, AlterID
+
+;; ── P_SI2: StockItem — no filter, flat HSNCode + GSTDetails sub-part ──
+;; P_SI1 filter ($GSTApplicable = "Applicable") returned 0 — field value unknown.
+;; Show all stock items to see the real value and test GSTDetails sub-collection.
+
+[Report : TS_PSI2_REPORT]
+    Form : TS_PSI2_FORM
+
+[Form : TS_PSI2_FORM]
+    Parts   : TS_PSI2_PART
+    XML Tag : "TS_PSI2_LIST"
+
+[Part : TS_PSI2_PART]
+    Lines    : TS_PSI2_LINE
+    Repeat   : TS_PSI2_LINE : TS_PSI2_COLL
+    Scrolled : Vertical
+
+[Line : TS_PSI2_LINE]
+    Fields  : TS_PSI2_F0, TS_PSI2_F1, TS_PSI2_F2
+    Explode : TS_PSI2_SP
+    XML Tag : "STOCKITEM"
+
+[Field : TS_PSI2_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_PSI2_F1]
+    Set as  : $GSTApplicable
+    XML Tag : "GSTAPPLICABLE"
+
+[Field : TS_PSI2_F2]
+    Set as  : $HSNCode
+    XML Tag : "HSNCODE_FLAT"
+
+[Part : TS_PSI2_SP]
+    Lines  : TS_PSI2_SL
+    Repeat : TS_PSI2_SL : GSTDetails
+
+[Line : TS_PSI2_SL]
+    Fields  : TS_PSI2_SF0, TS_PSI2_SF1
+    XML Tag : "GSTDETAILS.LIST"
+
+[Field : TS_PSI2_SF0]
+    Set as  : $HSNCode
+    XML Tag : "HSNCODE"
+
+[Field : TS_PSI2_SF1]
+    Set as  : $ApplicableFrom
+    XML Tag : "APPLICABLEFROM"
+
+[Collection : TS_PSI2_COLL]
+    Type : StockItem
+
+;; ── P_C2: Company — CMPGSTRegDetails sub-collection for GSTIN ──
+;; All flat variants ($GSTIN, $GSTRegistrationNumber, $GSTNumber) returned empty.
+;; CMPGSTRegDetails is the analogue of LedGSTRegDetails for the Company type.
+
+[Report : TS_PC2_REPORT]
+    Form : TS_PC2_FORM
+
+[Form : TS_PC2_FORM]
+    Parts   : TS_PC2_PART
+    XML Tag : "TS_PC2_LIST"
+
+[Part : TS_PC2_PART]
+    Lines    : TS_PC2_LINE
+    Repeat   : TS_PC2_LINE : TS_PC2_COLL
+    Scrolled : Vertical
+
+[Line : TS_PC2_LINE]
+    Fields  : TS_PC2_F0
+    Explode : TS_PC2_SP
+    XML Tag : "COMPANY"
+
+[Field : TS_PC2_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Part : TS_PC2_SP]
+    Lines  : TS_PC2_SL
+    Repeat : TS_PC2_SL : GSTDetails
+
+[Line : TS_PC2_SL]
+    Fields  : TS_PC2_SF0, TS_PC2_SF1
+    XML Tag : "GSTDETAILS.LIST"
+
+[Field : TS_PC2_SF0]
+    Set as  : $GSTIN
+    XML Tag : "GSTIN"
+
+[Field : TS_PC2_SF1]
+    Set as  : $ApplicableFrom
+    XML Tag : "APPLICABLEFROM"
+
+[Collection : TS_PC2_COLL]
+    Type : Company
+
+;; ── P_C3: Company — Fetch forces GSTIN to be pre-loaded (same trick as Voucher) ──
+
+[Report : TS_PC3_REPORT]
+    Form : TS_PC3_FORM
+
+[Form : TS_PC3_FORM]
+    Parts   : TS_PC3_PART
+    XML Tag : "TS_PC3_LIST"
+
+[Part : TS_PC3_PART]
+    Lines    : TS_PC3_LINE
+    Repeat   : TS_PC3_LINE : TS_PC3_COLL
+    Scrolled : Vertical
+
+[Line : TS_PC3_LINE]
+    Fields  : TS_PC3_F0, TS_PC3_F1
+    XML Tag : "COMPANY"
+
+[Field : TS_PC3_F0]
+    Set as  : $Name
+    XML Tag : "NAME"
+
+[Field : TS_PC3_F1]
+    Set as  : $GSTIN
+    XML Tag : "GSTIN_FETCH"
+
+[Collection : TS_PC3_COLL]
+    Type  : Company
+    Fetch : Name, GSTIN

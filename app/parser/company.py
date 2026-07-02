@@ -18,9 +18,24 @@ _KNOWN_TAGS: frozenset[str] = frozenset(
         "COUNTRYNAME",
         "STATENAME",
         "GSTIN",
+        "GSTDETAILS.LIST",
         "ALTERID",
     }
 )
+
+
+def _gstin_from_gst_details(elem: Any) -> str:
+    """Read GSTIN from the GSTDetails sub-collection.
+
+    Flat $GSTIN on Company returns nothing in TallyPrime 7; the value (when
+    entered) lives in the GSTDetails sub-object.  Fall back to the legacy flat
+    <GSTIN> tag for historical archive rows written before this fix.
+    """
+    for detail in elem.findall("GSTDETAILS.LIST"):
+        gstin = base.text(detail, "GSTIN")
+        if gstin:
+            return gstin
+    return base.text(elem, "GSTIN")
 
 
 def parse_companies(source: XmlSource) -> Iterator[CompanyRecord]:
@@ -46,6 +61,6 @@ def _build(elem: Any) -> CompanyRecord:
         ending_at=base.tally_date(elem, "ENDINGAT"),
         country=base.text(elem, "COUNTRYNAME"),
         state=base.text(elem, "STATENAME"),
-        gstin=base.text(elem, "GSTIN"),
+        gstin=_gstin_from_gst_details(elem),
         alter_id=base.integer(elem, "ALTERID"),
     )

@@ -17,6 +17,7 @@ _KNOWN_TAGS: frozenset[str] = frozenset(
         "GSTAPPLICABLE",
         "GSTTYPEOFSUPPLY",
         "HSNCODE",
+        "GSTDETAILS.LIST",
         "DESCRIPTION",
         "OPENINGBALANCE",
         "OPENINGRATE",
@@ -27,6 +28,28 @@ _KNOWN_TAGS: frozenset[str] = frozenset(
         "ALTERID",
     }
 )
+
+# ASCII control characters used by Tally as internal markers (e.g. \x04 before
+# "Applicable") must be stripped from display strings before storing.
+_CTRL_CHARS = "".join(chr(i) for i in range(32) if i not in (9, 10, 13))
+
+
+def _clean(s: str) -> str:
+    return s.strip(_CTRL_CHARS).strip()
+
+
+def _hsn_from_gst_details(elem: Any) -> str:
+    """Read HSNCode from the GSTDetails sub-collection.
+
+    Flat $HSNCode on StockItem returns nothing in TallyPrime 7; the value
+    lives in GSTDetails.  Return the first non-empty HSN found, or fall back
+    to the legacy flat <HSNCODE> tag for historical archive rows.
+    """
+    for detail in elem.findall("GSTDETAILS.LIST"):
+        hsn = base.text(detail, "HSNCODE")
+        if hsn:
+            return hsn
+    return base.text(elem, "HSNCODE")
 
 
 def parse_stock_items(source: XmlSource) -> Iterator[StockItemRecord]:
@@ -50,9 +73,9 @@ def _build(elem: Any) -> StockItemRecord:
         parent=base.text(elem, "PARENT"),
         category=base.text(elem, "CATEGORY"),
         base_units=base.text(elem, "BASEUNITS"),
-        gst_applicable=base.text(elem, "GSTAPPLICABLE"),
-        gst_type_of_supply=base.text(elem, "GSTTYPEOFSUPPLY"),
-        hsn_code=base.text(elem, "HSNCODE"),
+        gst_applicable=_clean(base.text(elem, "GSTAPPLICABLE")),
+        gst_type_of_supply=_clean(base.text(elem, "GSTTYPEOFSUPPLY")),
+        hsn_code=_hsn_from_gst_details(elem),
         description=base.text(elem, "DESCRIPTION"),
         opening_balance=base.quantity(elem, "OPENINGBALANCE"),
         opening_rate=base.rate(elem, "OPENINGRATE"),
