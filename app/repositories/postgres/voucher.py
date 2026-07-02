@@ -28,6 +28,11 @@ _VOUCHER_UPDATE = [
     "synced_at",
 ]
 
+# Keep each INSERT well under PostgreSQL's 65,535 bind-parameter ceiling.
+# Voucher headers: 12 cols → 500 rows = 6,000 params (safe).
+# Child rows: 4-7 cols x 500 rows = 2,000-3,500 params (safe).
+_CHUNK_SIZE = 500
+
 
 class VoucherRepository(BaseRepository[VoucherRecord]):
     def __init__(self, session: Session) -> None:
@@ -49,45 +54,47 @@ class VoucherRepository(BaseRepository[VoucherRecord]):
                 seen[key] = rec
         deduped = list(seen.values())
 
-        # 1. Upsert voucher headers; get id mapping via RETURNING
-        header_rows = [
-            {
-                "company_name": company_name,
-                "voucher_number": rec.voucher_number,
-                "voucher_type": rec.voucher_type,
-                "date": rec.date,
-                "party_ledger": rec.party_ledger,
-                "narration": rec.narration,
-                "is_invoice": rec.is_invoice,
-                "is_cancelled": rec.is_cancelled,
-                "is_optional": rec.is_optional,
-                "guid": rec.guid,
-                "alter_id": rec.alter_id,
-                "synced_at": now,
-            }
-            for rec in deduped
-        ]
-        stmt = insert(VoucherModel).values(header_rows)
-        update_dict = {col: getattr(stmt.excluded, col) for col in _VOUCHER_UPDATE}
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["company_name", "voucher_number", "voucher_type"],
-            set_=update_dict,
-        ).returning(
-            VoucherModel.id,
-            VoucherModel.voucher_number,
-            VoucherModel.voucher_type,
-        )
-        rows = self._session.execute(stmt).all()
-        id_map: dict[tuple[str, str], int] = {
-            (row.voucher_number, row.voucher_type): row.id for row in rows
-        }
+        # 1. Upsert voucher headers in chunks; accumulate id_map via RETURNING.
+        id_map: dict[tuple[str, str], int] = {}
+        for i in range(0, len(deduped), _CHUNK_SIZE):
+            chunk = deduped[i : i + _CHUNK_SIZE]
+            chunk_rows = [
+                {
+                    "company_name": company_name,
+                    "voucher_number": rec.voucher_number,
+                    "voucher_type": rec.voucher_type,
+                    "date": rec.date,
+                    "party_ledger": rec.party_ledger,
+                    "narration": rec.narration,
+                    "is_invoice": rec.is_invoice,
+                    "is_cancelled": rec.is_cancelled,
+                    "is_optional": rec.is_optional,
+                    "guid": rec.guid,
+                    "alter_id": rec.alter_id,
+                    "synced_at": now,
+                }
+                for rec in chunk
+            ]
+            stmt = insert(VoucherModel).values(chunk_rows)
+            update_dict = {col: getattr(stmt.excluded, col) for col in _VOUCHER_UPDATE}
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["company_name", "voucher_number", "voucher_type"],
+                set_=update_dict,
+            ).returning(
+                VoucherModel.id,
+                VoucherModel.voucher_number,
+                VoucherModel.voucher_type,
+            )
+            for row in self._session.execute(stmt).all():
+                id_map[(row.voucher_number, row.voucher_type)] = row.id
 
         if not id_map:
             return 0
 
         voucher_ids = list(id_map.values())
 
-        # 2. Delete stale child rows for these vouchers
+        # 2. Delete stale child rows for these vouchers.
+        # IN clauses with ~6k IDs are fine (one param per ID, well under 65k).
         self._session.execute(
             delete(VoucherLedgerEntryModel).where(
                 VoucherLedgerEntryModel.voucher_id.in_(voucher_ids)
@@ -102,7 +109,7 @@ class VoucherRepository(BaseRepository[VoucherRecord]):
             delete(GstDetailModel).where(GstDetailModel.voucher_id.in_(voucher_ids))
         )
 
-        # 3. Insert fresh child rows
+        # 3. Build fresh child rows.
         ledger_rows: list[dict[str, object]] = []
         inv_rows: list[dict[str, object]] = []
         gst_rows: list[dict[str, object]] = []
@@ -144,11 +151,16 @@ class VoucherRepository(BaseRepository[VoucherRecord]):
                     }
                 )
 
-        if ledger_rows:
-            self._session.execute(insert(VoucherLedgerEntryModel).values(ledger_rows))
-        if inv_rows:
-            self._session.execute(insert(VoucherInventoryEntryModel).values(inv_rows))
-        if gst_rows:
-            self._session.execute(insert(GstDetailModel).values(gst_rows))
+        # 4. Insert child rows in chunks to stay under the 65,535-param ceiling.
+        for i in range(0, len(ledger_rows), _CHUNK_SIZE):
+            self._session.execute(
+                insert(VoucherLedgerEntryModel).values(ledger_rows[i : i + _CHUNK_SIZE])
+            )
+        for i in range(0, len(inv_rows), _CHUNK_SIZE):
+            self._session.execute(
+                insert(VoucherInventoryEntryModel).values(inv_rows[i : i + _CHUNK_SIZE])
+            )
+        for i in range(0, len(gst_rows), _CHUNK_SIZE):
+            self._session.execute(insert(GstDetailModel).values(gst_rows[i : i + _CHUNK_SIZE]))
 
         return len(deduped)

@@ -38,6 +38,9 @@ def bulk_upsert(
     """Upsert *rows* into *model*'s table.
 
     Empty batch is a no-op; callers do not need to guard against it.
+    Rows are deduplicated by conflict_columns before insertion — Tally sometimes
+    emits duplicate records (same natural key) in one XML response, which would
+    trigger a CardinalityViolation from ON CONFLICT DO UPDATE.
     Large batches are automatically split into chunks of _CHUNK_SIZE rows to
     stay under PostgreSQL's 65,535-parameter-per-query limit.
     Returns the number of rows processed (inserted or updated).
@@ -45,10 +48,17 @@ def bulk_upsert(
     if not rows:
         return 0
 
+    # Deduplicate by conflict columns; last occurrence wins (Tally emits newer
+    # alter_id records later in the XML, so the final entry is the most current).
+    seen: dict[tuple[Any, ...], dict[str, Any]] = {}
+    for row in rows:
+        key = tuple(row.get(col) for col in conflict_columns)
+        seen[key] = row
+    deduped = list(seen.values())
+
     total = 0
-    row_list = list(rows)
-    for i in range(0, len(row_list), _CHUNK_SIZE):
-        chunk = row_list[i : i + _CHUNK_SIZE]
+    for i in range(0, len(deduped), _CHUNK_SIZE):
+        chunk = deduped[i : i + _CHUNK_SIZE]
         stmt = insert(model).values(chunk)  # type: ignore[arg-type]
         update_dict = {col: getattr(stmt.excluded, col) for col in update_columns}
         stmt = stmt.on_conflict_do_update(

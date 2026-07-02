@@ -23,6 +23,9 @@ _PO_UPDATE = [
     "synced_at",
 ]
 
+# Keep each INSERT under PostgreSQL's 65,535 bind-parameter ceiling.
+_CHUNK_SIZE = 500
+
 
 class PurchaseOrderRepository(BaseRepository[PurchaseOrderRecord]):
     def __init__(self, session: Session) -> None:
@@ -41,36 +44,39 @@ class PurchaseOrderRepository(BaseRepository[PurchaseOrderRecord]):
                 seen[rec.voucher_number] = rec
         deduped = list(seen.values())
 
-        header_rows = [
-            {
-                "company_name": company_name,
-                "voucher_number": rec.voucher_number,
-                "date": rec.date,
-                "party_ledger": rec.party_ledger,
-                "narration": rec.narration,
-                "order_due_date": rec.order_due_date,
-                "is_cancelled": rec.is_cancelled,
-                "is_optional": rec.is_optional,
-                "guid": rec.guid,
-                "alter_id": rec.alter_id,
-                "synced_at": now,
-            }
-            for rec in deduped
-        ]
-
-        stmt = insert(PurchaseOrderModel).values(header_rows)
-        update_dict = {col: getattr(stmt.excluded, col) for col in _PO_UPDATE}
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["company_name", "voucher_number"],
-            set_=update_dict,
-        ).returning(PurchaseOrderModel.id, PurchaseOrderModel.voucher_number)
-        rows = self._session.execute(stmt).all()
-        id_map: dict[str, int] = {row.voucher_number: row.id for row in rows}
+        # 1. Upsert PO headers in chunks; accumulate id_map via RETURNING.
+        id_map: dict[str, int] = {}
+        for i in range(0, len(deduped), _CHUNK_SIZE):
+            chunk = deduped[i : i + _CHUNK_SIZE]
+            chunk_rows = [
+                {
+                    "company_name": company_name,
+                    "voucher_number": rec.voucher_number,
+                    "date": rec.date,
+                    "party_ledger": rec.party_ledger,
+                    "narration": rec.narration,
+                    "order_due_date": rec.order_due_date,
+                    "is_cancelled": rec.is_cancelled,
+                    "is_optional": rec.is_optional,
+                    "guid": rec.guid,
+                    "alter_id": rec.alter_id,
+                    "synced_at": now,
+                }
+                for rec in chunk
+            ]
+            stmt = insert(PurchaseOrderModel).values(chunk_rows)
+            update_dict = {col: getattr(stmt.excluded, col) for col in _PO_UPDATE}
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["company_name", "voucher_number"],
+                set_=update_dict,
+            ).returning(PurchaseOrderModel.id, PurchaseOrderModel.voucher_number)
+            for row in self._session.execute(stmt).all():
+                id_map[row.voucher_number] = row.id
 
         if not id_map:
             return 0
 
-        # Delete stale items then insert fresh ones.
+        # 2. Delete stale items then insert fresh ones in chunks.
         self._session.execute(
             delete(PurchaseOrderItemModel).where(PurchaseOrderItemModel.po_id.in_(id_map.values()))
         )
@@ -93,7 +99,9 @@ class PurchaseOrderRepository(BaseRepository[PurchaseOrderRecord]):
                     }
                 )
 
-        if item_rows:
-            self._session.execute(insert(PurchaseOrderItemModel).values(item_rows))
+        for i in range(0, len(item_rows), _CHUNK_SIZE):
+            self._session.execute(
+                insert(PurchaseOrderItemModel).values(item_rows[i : i + _CHUNK_SIZE])
+            )
 
         return len(deduped)
